@@ -196,6 +196,11 @@
     }
   ];
 
+  // ประเภทโรคติดต่อจริงจาก Firestore (506Types) — เติมโดย case-intake-diagnose.js ผ่าน
+  // CustomEvent "case-intake:disease-types" (FEAT-INTAKE-11) เพราะไฟล์นี้เป็น classic script
+  // ไม่ใช่ module จึงอ่าน Firestore เองไม่ได้ ว่างไว้ก่อนจนกว่าจะโหลดเสร็จ
+  var DISEASE_TYPES = [];
+
   function getCaseById(id) {
     for (var i = 0; i < CASES.length; i++) {
       if (CASES[i].id === id) return CASES[i];
@@ -434,6 +439,48 @@
     return escapeHtml(c.labResult);
   }
 
+  // ประเภทโรคติดต่อ (FEAT-INTAKE-11) — dropdown ผูกกับ 506Types จริง + ปุ่ม "ให้ AI ช่วยจัด"
+  // ที่ส่งค่า "ผลตรวจ" ของแถวนี้ไปให้ suggestDiseaseType วิเคราะห์ เป็น advisory เท่านั้น
+  // เจ้าหน้าที่เลือก/แก้ไข dropdown เองได้เสมอ ไม่ persist ลง Firestore (Case Intake ยังไม่มี
+  // backing จริงสำหรับเคส — ดู FEAT-INTAKE-11 ใน FEATURE-LIST.md)
+  function diseaseCellHtml(c) {
+    if (c.status === "confirmed") {
+      return '<span class="cell-primary">' + (c.diseaseName ? escapeHtml(c.diseaseName) : "-") + "</span>";
+    }
+
+    var optionsHtml = '<option value="">-- เลือกประเภทโรคติดต่อ --</option>' +
+      DISEASE_TYPES.map(function (t) {
+        var selected = (c.diseaseId === t.id) ? " selected" : "";
+        return '<option value="' + escapeHtml(t.id) + '"' + selected + '>' + escapeHtml(t.name) + "</option>";
+      }).join("");
+
+    var selectHtml =
+      '<select class="input-inline select-disease-type" data-id="' + c.id + '"' + (DISEASE_TYPES.length === 0 ? " disabled" : "") + ">" +
+        optionsHtml +
+      "</select>";
+
+    var diagnoseDisabled = c._diagnoseLoading || !c.labResult;
+    var btnLabel = c._diagnoseLoading ? "กำลังวิเคราะห์..." : "ให้ AI ช่วยจัด";
+    var btnHtml =
+      '<button type="button" class="btn btn-outline btn-sm btn-ai-diagnose" data-id="' + c.id + '" data-text="' + escapeHtml(c.labResult || "") + '"' +
+      (diagnoseDisabled ? " disabled" : "") + ">" + btnLabel + "</button>";
+
+    var resultHtml = "";
+    if (c._diagnoseResult) {
+      if (c._diagnoseResult.error) {
+        resultHtml = '<div class="assist-result assist-result-error">' + escapeHtml(c._diagnoseResult.error) + "</div>";
+      } else if (c._diagnoseResult.matched) {
+        resultHtml = '<div class="assist-result assist-result-ok">' + ICON_CHECK + "AI เสนอ: " + escapeHtml(c._diagnoseResult.diseaseName) +
+          (c._diagnoseResult.reason ? " (" + escapeHtml(c._diagnoseResult.reason) + ")" : "") + " — โปรดตรวจสอบก่อนยืนยัน</div>";
+      } else {
+        resultHtml = '<div class="assist-result assist-result-concern">AI จัดหมวดหมู่ให้ไม่ได้' +
+          (c._diagnoseResult.reason ? ": " + escapeHtml(c._diagnoseResult.reason) : "") + " กรุณาเลือกเอง</div>";
+      }
+    }
+
+    return '<div class="geo-cell">' + selectHtml + btnHtml + "</div>" + resultHtml;
+  }
+
   function renderOCRTable() {
     els.ocrTableBody.innerHTML = "";
 
@@ -453,6 +500,7 @@
         "<td>" + addressCellHtml(c, editing) + "</td>" +
         "<td>" + onsetCellHtml(c, editing) + "</td>" +
         "<td>" + labResultCellHtml(c, editing) + "</td>" +
+        "<td>" + diseaseCellHtml(c) + "</td>" +
         "<td>" + geoCellHtml(c) + "</td>" +
         "<td>" +
           (confirmed
@@ -670,6 +718,8 @@
       province: fields.province || "",
       onsetDate: fields.onsetDate || "",
       labResult: fields.labResult || "",
+      diseaseId: null,
+      diseaseName: null,
       // ตำบลไม่ตรงกับพื้นที่ที่ระบบรู้จัก (mock) -> เข้าทีมสอบสวนโรค เขต 1 เป็นค่าเริ่มต้นไปก่อน
       zone: SUBDISTRICT_TEAM_MAP.hasOwnProperty(subdistrict) ? SUBDISTRICT_TEAM_MAP[subdistrict] : 1,
       geoAccuracy: "low",
@@ -782,6 +832,18 @@
       }
     });
 
+    // เลือกประเภทโรคติดต่อเองด้วยมือ (FEAT-INTAKE-11) — แก้ไข dropdown ได้เสมอ ไม่ว่าจะเคย
+    // กด "ให้ AI ช่วยจัด" มาก่อนหรือไม่ (human-in-the-loop เดียวกับ FEAT-ANALYSIS-08)
+    els.ocrTableBody.addEventListener("change", function (e) {
+      var select = e.target.closest(".select-disease-type");
+      if (!select) return;
+      var c = getCaseById(parseInt(select.getAttribute("data-id"), 10));
+      if (!c) return;
+      var option = select.options[select.selectedIndex];
+      c.diseaseId = select.value || null;
+      c.diseaseName = select.value ? option.textContent : null;
+    });
+
     // Dropzone — mock drag/drop visual feedback only (no real file handling)
     if (els.dropzone) {
       ["dragenter", "dragover"].forEach(function (evt) {
@@ -818,6 +880,32 @@
         c._assistResult = e.detail.error
           ? { error: e.detail.error }
           : { status: e.detail.status, notes: e.detail.notes };
+      }
+      renderOCRTable();
+    });
+    // รายชื่อโรคติดต่อจริงจาก 506Types (FEAT-INTAKE-11) — มาจาก case-intake-diagnose.js
+    document.addEventListener("case-intake:disease-types", function (e) {
+      DISEASE_TYPES = e.detail.types || [];
+      renderOCRTable();
+    });
+    // ผล "ให้ AI ช่วยจัด" ประเภทโรคติดต่อ (FEAT-INTAKE-11) — matched=true เติม dropdown ให้
+    // อัตโนมัติ แต่ยังแก้ไขเองได้เสมอก่อนกดยืนยัน (advisory เท่านั้น)
+    document.addEventListener("case-intake:diagnose-result", function (e) {
+      var c = getCaseById(e.detail.id);
+      if (!c) return;
+      if (e.detail.loading) {
+        c._diagnoseLoading = true;
+      } else {
+        c._diagnoseLoading = false;
+        if (e.detail.error) {
+          c._diagnoseResult = { error: e.detail.error };
+        } else {
+          c._diagnoseResult = { matched: e.detail.matched, diseaseName: e.detail.diseaseName, reason: e.detail.reason };
+          if (e.detail.matched) {
+            c.diseaseId = e.detail.diseaseId;
+            c.diseaseName = e.detail.diseaseName;
+          }
+        }
       }
       renderOCRTable();
     });

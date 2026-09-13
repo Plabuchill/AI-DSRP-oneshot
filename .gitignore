@@ -15,3 +15,4 @@ scripts/seed/serviceAccountKey.json
 *.p12
 *credentials*.json
 *secret*.json
+test-openrouter.html

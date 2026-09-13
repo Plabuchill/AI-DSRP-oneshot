@@ -164,10 +164,12 @@ exports.assistCaseReview = onCall({ secrets: [ANTHROPIC_API_KEY] }, async (reque
   return toolUse.input;
 });
 
-// suggestDiseaseType (FEAT-ANALYSIS-08) — วิเคราะห์หัวเรื่อง/เหตุผลของรายงาน รง.506 ที่กำลังร่าง
+// suggestDiseaseType (FEAT-ANALYSIS-08, FEAT-INTAKE-11) — วิเคราะห์ข้อความที่เกี่ยวกับโรค
 // แล้วเสนอ "โรคติดต่อ" ที่ตรงที่สุด — ต้องเป็นค่าที่มีอยู่จริงใน collection "506Types" เท่านั้น
 // (ตรวจสอบซ้ำฝั่ง server เสมอ ไม่เชื่อผลจากโมเดลเฉยๆ) เป็น advisory: ผู้ใช้แก้ไข dropdown เองได้
 // เสมอ และถ้าเรียกไม่สำเร็จ/จัดหมวดหมู่ไม่ได้ ก็ไม่แตะค่าเดิม ไม่บล็อกการบันทึกด้วยมือ
+// รองรับ 2 รูปแบบ input: { title, reason } จากฟอร์ม รง.506 เดิม (FEAT-ANALYSIS-08) หรือ
+// { clinicalText } จาก Case Intake OCR Review (FEAT-INTAKE-11) — เลือกอย่างใดอย่างหนึ่งก็พอ
 
 const SUGGEST_DISEASE_TOOL = {
   name: "suggest_disease_type",
@@ -188,9 +190,11 @@ exports.suggestDiseaseType = onCall({ secrets: [ANTHROPIC_API_KEY] }, async (req
     throw new HttpsError("unauthenticated", "ต้องเข้าสู่ระบบก่อนใช้งานฟังก์ชันนี้");
   }
 
-  const { title, reason } = request.data || {};
-  if (!title && !reason) {
-    throw new HttpsError("invalid-argument", "ไม่พบข้อความหัวเรื่อง/เหตุผลที่จะวิเคราะห์");
+  const { title, reason, clinicalText } = request.data || {};
+  const hasLegacyInput = title || reason;
+  const hasClinicalText = clinicalText && typeof clinicalText === "string" && clinicalText.trim();
+  if (!hasLegacyInput && !hasClinicalText) {
+    throw new HttpsError("invalid-argument", "ไม่พบข้อความที่จะวิเคราะห์");
   }
 
   const typesSnap = await db.collection("506Types").get();
@@ -202,11 +206,13 @@ exports.suggestDiseaseType = onCall({ secrets: [ANTHROPIC_API_KEY] }, async (req
   const client = new Anthropic({ apiKey: ANTHROPIC_API_KEY.value() });
 
   const typesListText = types.map(function (t) { return "- " + t.id + ": " + t.name; }).join("\n");
+  const contextText = hasClinicalText
+    ? "ข้อมูลเคสผู้ป่วย (จาก OCR/กรอกด้วยมือ): " + clinicalText.trim()
+    : "หัวเรื่องรายงาน: " + (title || "-") + "\nเหตุผล: " + (reason || "-");
   const prompt =
     "นี่คือรายชื่อโรคติดต่อที่มีอยู่จริงในระบบ (ต้องเลือกจากลิสต์นี้เท่านั้น ห้ามสร้างชื่อ/id ใหม่ขึ้นมาเอง):\n" +
     typesListText +
-    "\n\nหัวเรื่องรายงาน: " + (title || "-") +
-    "\nเหตุผล: " + (reason || "-") +
+    "\n\n" + contextText +
     "\n\nช่วยเลือกโรคติดต่อที่ตรงที่สุดจากลิสต์ด้านบน ถ้าไม่มีโรคไหนตรงเลยให้ตอบว่าจัดหมวดหมู่ไม่ได้ (matched=false) บันทึกผลผ่าน tool ที่กำหนด";
 
   let response;
