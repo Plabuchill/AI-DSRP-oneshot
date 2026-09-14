@@ -1,5 +1,7 @@
 # AI-DSRP — AI Disease Surveillance & Response Platform
 
+🔗 **เว็บออนไลน์**: https://ai-dsrp.web.app
+
 ระบบเฝ้าระวังและตอบสนองต่อการระบาดของโรค ที่ช่วยให้เจ้าหน้าที่สาธารณสุข (โรงพยาบาล → เทศบาล → ทีมสอบสวนโรค) รับ ตรวจสอบ และติดตามเคสรายงานโรคได้เร็วขึ้น โดยลดขั้นตอนคีย์ข้อมูลมือด้วย OCR/AI extraction และ auto-route การแจ้งเตือนไปยังทีมที่รับผิดชอบพื้นที่
 
 > **สถานะ**: อยู่ในขั้นตอน Prototype — ส่วนใหญ่ยังเป็น static HTML/CSS/JS ที่ใช้ mock data แต่ระบบ Login/สิทธิ์ผู้ใช้ (Firebase Authentication) และฟีเจอร์ "บันทึกและยืนยัน รง.506" เชื่อมต่อ Firebase Firestore จริงแล้ว — ดูหัวข้อ [Prototype ออนไลน์](#prototype-ออนไลน์) ด้านล่าง
