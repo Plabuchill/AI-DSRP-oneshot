@@ -1,13 +1,12 @@
 {
   "name": "ai-dsrp-functions",
-  "description": "AI-DSRP Cloud Functions — OCR extraction (Claude Vision) for Case Intake",
+  "description": "AI-DSRP Cloud Functions — OCR extraction (Claude Vision via OpenRouter) for Case Intake",
   "private": true,
   "engines": {
     "node": "20"
   },
   "main": "index.js",
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.32.0",
     "firebase-admin": "^12.6.0",
     "firebase-functions": "^5.1.0"
   }
