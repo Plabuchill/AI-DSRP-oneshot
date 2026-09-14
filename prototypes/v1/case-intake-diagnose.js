@@ -59,6 +59,7 @@ function init() {
         detail: {
           id: id,
           loading: false,
+          clinicalText: clinicalText,
           matched: data.matched,
           diseaseId: data.diseaseId,
           diseaseName: data.diseaseName,

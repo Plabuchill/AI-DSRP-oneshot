@@ -466,15 +466,16 @@
       (diagnoseDisabled ? " disabled" : "") + ">" + btnLabel + "</button>";
 
     var resultHtml = "";
-    if (c._diagnoseResult) {
-      if (c._diagnoseResult.error) {
-        resultHtml = '<div class="assist-result assist-result-error">' + escapeHtml(c._diagnoseResult.error) + "</div>";
-      } else if (c._diagnoseResult.matched) {
-        resultHtml = '<div class="assist-result assist-result-ok">' + ICON_CHECK + "AI เสนอ: " + escapeHtml(c._diagnoseResult.diseaseName) +
-          (c._diagnoseResult.reason ? " (" + escapeHtml(c._diagnoseResult.reason) + ")" : "") + " — โปรดตรวจสอบก่อนยืนยัน</div>";
+    if (c._diagnoseError) {
+      resultHtml = '<div class="assist-result assist-result-error">' + escapeHtml(c._diagnoseError) + "</div>";
+    } else if (c.aiSuggestion) {
+      if (c.aiSuggestion.matched) {
+        // ข้อความให้ตรงกับ label มาตรฐานเดียวกับ new-506-request.js (FEAT-ANALYSIS-08)
+        resultHtml = '<div class="assist-result assist-result-ok">' + ICON_CHECK + "ข้อเสนอจาก AI — โปรดตรวจสอบก่อนยืนยัน: " + escapeHtml(c.aiSuggestion.diseaseName) +
+          (c.aiSuggestion.reason ? " (" + escapeHtml(c.aiSuggestion.reason) + ")" : "") + "</div>";
       } else {
         resultHtml = '<div class="assist-result assist-result-concern">AI จัดหมวดหมู่ให้ไม่ได้' +
-          (c._diagnoseResult.reason ? ": " + escapeHtml(c._diagnoseResult.reason) : "") + " กรุณาเลือกเอง</div>";
+          (c.aiSuggestion.reason ? ": " + escapeHtml(c.aiSuggestion.reason) : "") + " กรุณาเลือกเอง</div>";
       }
     }
 
@@ -608,6 +609,9 @@
   /* ---------------------------------------------------------
      Actions
      --------------------------------------------------------- */
+  // ⚠️ c.status เปลี่ยนได้จากฟังก์ชันนี้เท่านั้น และฟังก์ชันนี้ถูกเรียกจาก click handler ของ
+  // ปุ่ม "ยืนยัน" (.btn-confirm) เท่านั้น — ห้าม AI (case-intake-diagnose.js/case-intake-upload.js/
+  // case-intake-assist.js) เรียก confirmCase() หรือแก้ c.status ตรงๆ เด็ดขาด ต้องรอคนกดยืนยันเสมอ
   function confirmCase(id) {
     var c = getCaseById(id);
     if (!c || c.status === "confirmed") return;
@@ -895,12 +899,27 @@
       if (!c) return;
       if (e.detail.loading) {
         c._diagnoseLoading = true;
+        c._diagnoseError = null;
       } else {
         c._diagnoseLoading = false;
         if (e.detail.error) {
-          c._diagnoseResult = { error: e.detail.error };
+          // error ชั่วคราว (เรียกไม่สำเร็จ/timeout) ไม่ใช่ผลลัพธ์จาก AI จริง จึงไม่เก็บใน
+          // c.aiSuggestion — เก็บแยกไว้แค่แสดงผลบนจอเท่านั้น
+          c._diagnoseError = e.detail.error;
         } else {
-          c._diagnoseResult = { matched: e.detail.matched, diseaseName: e.detail.diseaseName, reason: e.detail.reason };
+          c._diagnoseError = null;
+          // เก็บผลลัพธ์ล่าสุดจาก AI ไว้ที่ c.aiSuggestion (in-memory เท่านั้น หายเมื่อ reload
+          // เพราะ Case Intake ยังไม่มี Firestore document ให้ persist จริง — ดู FEAT-INTAKE-11)
+          c.aiSuggestion = { matched: e.detail.matched, diseaseId: e.detail.diseaseId || null, diseaseName: e.detail.diseaseName || null, reason: e.detail.reason || "" };
+          // aiLog — ประวัติการเรียก AI ทุกครั้งที่สำเร็จ (ไม่รวม error ชั่วคราว) เก็บ input/output/
+          // createdAt แบบ append-only เหมือน SURVEILLANCE_REPORT_506_AI_LOG แต่เป็น in-memory
+          // array แทน Firestore subcollection เพราะเคสนี้ยังไม่มี document จริงให้ผูก
+          if (!c.aiLog) c.aiLog = [];
+          c.aiLog.push({
+            input: { clinicalText: e.detail.clinicalText || "" },
+            output: { matched: e.detail.matched, diseaseId: e.detail.diseaseId || null, diseaseName: e.detail.diseaseName || null, reason: e.detail.reason || "" },
+            createdAt: new Date().toISOString()
+          });
           if (e.detail.matched) {
             c.diseaseId = e.detail.diseaseId;
             c.diseaseName = e.detail.diseaseName;
