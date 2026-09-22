@@ -13,3 +13,4 @@
 ## เอกสารที่มีอยู่
 
 - [`USER-JOURNEY-outbreak-dashboard.md`](./USER-JOURNEY-outbreak-dashboard.md) — journey แรกของโปรเจกต์ (เจ้าหน้าที่เฝ้าระวังโรคใช้ Outbreak Dashboard) อ้างอิง [[../../01-requirements/01-spec/FEATURE-LIST|FEATURE-LIST.md]] และตรงกับ Test Spec ที่มีอยู่แล้วใน [[../../03-testing/01-test-plan/index|03-testing/01-test-plan]]
+- [`USER-JOURNEY-case-intake.md`](./USER-JOURNEY-case-intake.md) — เจ้าหน้าที่ รพ./เทศบาล อัปโหลด/ตรวจสอบ/ยืนยันเคสผ่าน Case Intake (persona รอง: ทีมสอบสวนโรคผู้รับแจ้งเตือนปลายทาง) อ้างอิง [[../../01-requirements/01-spec/FEATURE-LIST|FEATURE-LIST.md]] หมวด `FEAT-INTAKE` และ [[../02-technical/DETAILED-DESIGN|DETAILED-DESIGN.md]] Flow 1-3 — โมดูลนี้ยังไม่มี Test Spec คู่กัน
