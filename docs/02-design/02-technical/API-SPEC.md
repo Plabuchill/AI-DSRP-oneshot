@@ -2,7 +2,7 @@
 
 เอกสารนี้เป็น**conceptual API spec เท่านั้น** — ระบุ *operation* (การกระทำที่ระบบต้องรองรับ) ไม่ใช่ endpoint จริง ยังไม่ตัดสินว่าเป็น REST/GraphQL/RPC และไม่ระบุ auth mechanism เจาะจง เพราะยังไม่มีการยืนยันเทคโนโลยีมาในรอบนี้ อ้างอิงโครงจาก skill `data-contract-builder` (`references/data-contract-templates.md`) และ entity ตาม [[./DATA-MODEL|DATA-MODEL.md]]
 
-ขอบเขต: ครอบคลุมทั้ง 8 โมดูลของระบบ — **Case Intake** (`FEAT-INTAKE-*`, เขียนไว้ก่อนหน้ารอบนี้ ไม่แก้เนื้อหาเดิม) มีระดับรายละเอียด Operation list + payload ตัวอย่างระดับ field (conceptual type) — ส่วน **7 โมดูลใหม่** (Dashboard, Case Analysis, Control Plan, Field Tracking, ASM Coordination, Reports, Alerts) ขอบเขตที่ยืนยันแล้วมีเฉพาะ **Operation list** (Operation/Actor/วัตถุประสงค์/Input-Output เชิงแนวคิด) **ไม่รวม** payload ตัวอย่างระดับ field และ**ไม่รวม** error/validation case แบบละเอียดในรอบนี้ (ทั้ง 8 โมดูล)
+ขอบเขต: ครอบคลุมทั้ง 8 โมดูลของระบบ — **Case Intake** (`FEAT-INTAKE-*`, เขียนไว้ก่อนหน้ารอบนี้ ไม่แก้เนื้อหาเดิม) มีระดับรายละเอียด Operation list + payload ตัวอย่างระดับ field (conceptual type) + **error/validation case แบบละเอียด (เพิ่มเข้ามา 2026-09-22 — ดูหัวข้อ 4)** — ส่วน **7 โมดูลใหม่** (Dashboard, Case Analysis, Control Plan, Field Tracking, ASM Coordination, Reports, Alerts) ขอบเขตที่ยืนยันแล้วมีเฉพาะ **Operation list** (Operation/Actor/วัตถุประสงค์/Input-Output เชิงแนวคิด) **ไม่รวม** payload ตัวอย่างระดับ field และ**ไม่รวม** error/validation case แบบละเอียดในรอบนี้
 
 ## 1. หลักการ Conceptual API
 
@@ -275,4 +275,54 @@ ListConfirmedCasesForMapResponse {
 
 ## 4. Error / Validation case
 
-ไม่รวมในรอบนี้ตามที่ยืนยันไว้ในขอบเขตของ Build Plan — ครอบคลุมทั้ง 8 โมดูล (Case Intake และ 7 โมดูลใหม่ใน 2B ถึง 2H)
+> ระดับรายละเอียดที่ยืนยันแล้วในรอบนี้: เฉพาะ **Module Case Intake** (operation 1-7 ในหัวข้อ 2) — 7 โมดูลใหม่ (2B ถึง 2H) ยังไม่รวม error/validation case แบบละเอียดในรอบนี้
+
+### Operation 1 — อัปโหลดไฟล์รายงานเคส (`FEAT-INTAKE-01`)
+
+| เงื่อนไข error | ประเภท | ผลลัพธ์/Response ที่คาดหวัง |
+|---|---|---|
+| `file_type` ไม่ใช่ PDF/JPEG | validation error | ปฏิเสธการอัปโหลด — ไม่สร้าง `CASE`/`CASE_ATTACHMENT` |
+| ไม่มีไฟล์แนบมา/ไฟล์ว่าง | validation error | ปฏิเสธการอัปโหลด — ไม่สร้าง `CASE`/`CASE_ATTACHMENT` |
+| OCR extraction ล้มเหลวทั้งหมด (service ล่ม/timeout) | degraded path (ไม่ใช่ error ที่ปฏิเสธการอัปโหลด) | ยังคงสร้าง `CASE` ใหม่ (status = รอตรวจสอบ) และ `CASE_ATTACHMENT` ตามปกติ (ไฟล์ที่อัปโหลดไม่เสีย) — field ที่ปกติ OCR ดึงให้ (patient_name, hn, house_no, village_no, village, subdistrict, onset_date, lab_result) เป็นค่าว่าง/null ให้เจ้าหน้าที่กรอกมือแทนที่หน้า OCR Review — **ไม่สร้าง** `CASE_OCR_SNAPSHOT` (ไม่มีค่า OCR ให้ capture) — response เพิ่ม flag `ocr_status: enum(success, failed)` เพื่อให้ frontend เตือนผู้ใช้กรอกมือทั้งหมดเมื่อเป็น `failed` |
+
+### Operation 2 — ดึงรายการเคส (`FEAT-INTAKE-02`)
+
+| เงื่อนไข error | ประเภท | ผลลัพธ์/Response ที่คาดหวัง |
+|---|---|---|
+| `status` ที่ส่งมาไม่ใช่ค่าที่กำหนดไว้ (รอตรวจสอบ/ยืนยันแล้ว/ทั้งหมด) | validation error | ปฏิเสธ request |
+| `date_from` > `date_to` | validation error | ปฏิเสธ request |
+| ไม่มีเคสตรงกับ filter | ไม่ใช่ error | คืน list ว่างเปล่า |
+
+### Operation 3 — แก้ไขข้อมูลเคสก่อนยืนยัน (`FEAT-INTAKE-02`)
+
+| เงื่อนไข error | ประเภท | ผลลัพธ์/Response ที่คาดหวัง |
+|---|---|---|
+| `case_id` ไม่พบ | not found | ปฏิเสธ request |
+| `CASE.status` ไม่ใช่ "รอตรวจสอบ" (เช่นยืนยันแล้ว) | validation error (business rule ตาม `DATA-MODEL.md`) | ปฏิเสธการแก้ไขทั้งหมด |
+| ส่ง field ที่ไม่อยู่ในรายการที่แก้ไขได้มาด้วย (เช่น `district`, `province`) | validation error | ปฏิเสธ request ทั้งหมด (ไม่ใช่แค่เพิกเฉย field นั้น) — response ระบุชื่อ field ที่ไม่อนุญาตทั้งหมด |
+| ทุก field ที่ส่งมาเป็นค่าว่าง (ไม่มีอะไรจะอัปเดตเลย) | validation error | ปฏิเสธ request (ไม่มี field ให้แก้) |
+
+### Operation 4 — ปรับพิกัดด้วยมือ (`FEAT-INTAKE-04`)
+
+| เงื่อนไข error | ประเภท | ผลลัพธ์/Response ที่คาดหวัง |
+|---|---|---|
+| `case_id` ไม่พบ | not found | ปฏิเสธ request |
+| เรียกตอน `geo_accuracy = high` อยู่แล้ว | validation error | ปฏิเสธ request — action นี้มีผลเฉพาะเมื่อ `geo_accuracy = low` เท่านั้น (ตาม `DATA-MODEL.md`) |
+
+### Operation 5 — ยืนยันเคส (`FEAT-INTAKE-03`)
+
+| เงื่อนไข error | ประเภท | ผลลัพธ์/Response ที่คาดหวัง |
+|---|---|---|
+| `case_id` ไม่พบ | not found | ปฏิเสธ request |
+| `CASE.status` เป็น "ยืนยันแล้ว" อยู่ก่อนแล้ว (confirm ซ้ำ) | validation error | ปฏิเสธ request |
+| field ที่ "จำเป็นต้องมี = ใช่" ใน `DATA-MODEL.md` ของ `CASE` (patient_name, hn, house_no, village_no, village, subdistrict, district, province, onset_date, lab_result) เป็นค่าว่างอยู่อย่างน้อย 1 field | validation error | ปฏิเสธการยืนยัน — response ระบุรายชื่อ field ที่ยังว่างอยู่ ต้องกรอกให้ครบก่อนจึงจะยืนยันได้ |
+
+### Operation 6 — ดึงประวัติการแจ้งเตือน (`FEAT-INTAKE-03`)
+
+| เงื่อนไข error | ประเภท | ผลลัพธ์/Response ที่คาดหวัง |
+|---|---|---|
+| `case_id`/`team` filter ไม่พบข้อมูล | ไม่ใช่ error | คืน list ว่างเปล่า |
+
+### Operation 7 — ดึงข้อมูลสำหรับ Spot Map (`FEAT-INTAKE-04`)
+
+ไม่มี error case พิเศษนอกเหนือจาก filter ที่ไม่พบข้อมูล (`team` ไม่พบเคสตรงเงื่อนไข) → คืน list ว่างเปล่า (ไม่ใช่ error)

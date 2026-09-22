@@ -28,17 +28,17 @@
 - **Geocoding API จริง** — แปลงที่อยู่เป็นพิกัดจริง แทน mock coordinate พร้อม fallback ปักหมุดด้วยมือเมื่อความแม่นยำต่ำ (UI ส่วนนี้ทำไว้ใน prototype แล้ว รอเชื่อม API)
 - **LINE OA API จริง** — ส่งแจ้งเตือนไปยังทีมสอบสวนโรคจริงตาม field ตำบล/หมู่บ้าน แทน mock notification log
 - **แก้ไขแถวที่ยืนยันแล้ว** — เพิ่ม flow unlock/ขอสิทธิ์แก้ไขข้อมูลที่ยืนยันไปแล้ว (ปัจจุบันแก้ได้เฉพาะแถว "รอตรวจสอบ")
-- [ ] ยืนยัน OCR/Document AI vendor และ Geocoding vendor ผ่านการสัมภาษณ์ `tech-stack-builder` รอบ 2 (FEAT-INTAKE-05, FEAT-INTAKE-07) — `TECH-STACK.md` ระบุสถานะ "ยังไม่สัมภาษณ์"
-- [ ] สร้าง `DETAILED-DESIGN.md` สำหรับ flow OCR Review (human-in-the-loop) ก่อนเริ่ม implement จริง (FEAT-INTAKE-02, FEAT-INTAKE-05)
-- [ ] เพิ่ม Error/Validation case แบบละเอียดใน `API-SPEC.md` (FEAT-INTAKE-*) — `API-SPEC.md` หัวข้อ 4 ระบุ "ไม่รวมในรอบนี้ตามที่ยืนยันไว้ในขอบเขตของ Build Plan"
+- [x] ยืนยัน OCR/Document AI vendor และ Geocoding vendor ผ่านการสัมภาษณ์ `tech-stack-builder` รอบ 2 (FEAT-INTAKE-05, FEAT-INTAKE-07) — สัมภาษณ์เสร็จแล้ว (2026-09-08): Claude Vision (Anthropic) และ Google Maps Geocoding API ดู `TECH-STACK.md` หัวข้อ 3, 4.5-4.6
+- [x] สร้าง `DETAILED-DESIGN.md` สำหรับ flow OCR Review (human-in-the-loop) ก่อนเริ่ม implement จริง (FEAT-INTAKE-02, FEAT-INTAKE-05) — เสร็จแล้ว (2026-09-08): Flow 1 — OCR Review & Confirm Flow
+- [x] เพิ่ม Error/Validation case แบบละเอียดใน `API-SPEC.md` (FEAT-INTAKE-*) — เสร็จแล้ว (2026-09-22): 17 รายการครอบทุก operation ของ Case Intake ดู `API-SPEC.md` หัวข้อ 4
 
 ## Phase 2 — ทีมสอบสวนโรค: วิเคราะห์เคสและร่างรายงาน
 
 - **วิเคราะห์การเชื่อมโยงเคส (case clustering)** — clustering ตามเวลา/พื้นที่/ความสัมพันธ์ผู้สัมผัส เพื่อช่วยดูว่าเคสไหนน่าจะเป็น cluster เดียวกัน — เป็นงาน statistical/spatial-temporal clustering จริง (ไม่ใช่แค่ LLM สรุปข้อความ) ต้องมีข้อมูลไทม์ไลน์/พิกัด/ผู้สัมผัสที่แม่นยำพอ และให้ AI เสนอเป็น "cluster ที่เป็นไปได้" เท่านั้น ให้นักระบาดวิทยายืนยันก่อนทุกครั้ง (human-in-the-loop เหมือน Case Intake) — cluster ผิดอาจทำให้ทุ่มทรัพยากรผิดพื้นที่
 - **ร่างรายงานสอบสวนโรค** — AI ดึงข้อมูลดิบ (จำนวนผู้สัมผัส, ไทม์ไลน์, ผลสอบสวน) มาร่างเป็นรายงานฉบับส่งผู้บริหาร ให้นักวิชาการแก้ไข/เติมรายละเอียดต่อ (เสี่ยงต่ำ เพราะมีคนตรวจทานก่อนใช้จริงอยู่แล้ว)
 - **Chatbot ช่วยประสานงาน อสม. เบื้องต้น** — นัดหมาย/แจ้งพื้นที่ก่อนโทรจริง — ต้องจำกัดสิทธิ์ให้ใช้ได้แค่นัดหมาย/แจ้งพื้นที่เบื้องต้นเท่านั้น ห้ามส่งข้อมูลเคสละเอียดผ่าน chatbot (ความเสี่ยง PDPA) และต้องมี fallback ให้โทรจริงได้เสมอสำหรับเคสเร่งด่วน
-- [ ] ยืนยัน Case Clustering library/service ผ่าน `tech-stack-builder` รอบ 2 (FEAT-ANALYSIS-04) — อ้างจาก `TECH-STACK.md`
-- [ ] สร้าง `DETAILED-DESIGN.md` สำหรับ flow Case Clustering decision (human-in-the-loop) (FEAT-ANALYSIS-01, FEAT-ANALYSIS-04)
+- [x] ยืนยัน Case Clustering library/service ผ่าน `tech-stack-builder` รอบ 2 (FEAT-ANALYSIS-04) — ยืนยันแล้ว (2026-09-21): BigQuery GIS ดู `TECH-STACK.md` หัวข้อ 3, 4.8
+- [x] สร้าง `DETAILED-DESIGN.md` สำหรับ flow Case Clustering decision (human-in-the-loop) (FEAT-ANALYSIS-01, FEAT-ANALYSIS-04) — เสร็จแล้ว (2026-09-08): Flow 5 — Case Clustering Confirm & Report Flow
 
 ## Phase 3 — ทีมควบคุมโรค (ทีมพ่น)
 
