@@ -24,17 +24,9 @@ function currentPageName() {
   return path.substring(path.lastIndexOf("/") + 1);
 }
 
-onAuthStateChanged(auth, async function (user) {
+async function handleUser(user) {
   if (!user) {
-    // ป้องกัน false-negative ชั่วคราว — ทดสอบจริง (2026-09-22) พบว่าบางหน้า (เช่น
-    // new-506-request.html) onAuthStateChanged ยิง callback แรกด้วย user=null ทั้งที่ login
-    // อยู่จริง (เข้าใจว่าเป็น timing ตอน Firebase Auth restore session จาก persistence ยังไม่
-    // ทราบกลไกแน่ชัด) เช็คซ้ำสั้นๆ ผ่าน auth.currentUser ก่อนเด้งไป login จริง แทนที่จะเชื่อ
-    // callback แรกทันที
-    await new Promise(function (resolve) { setTimeout(resolve, 300); });
-    if (!auth.currentUser) {
-      window.location.href = "login.html";
-    }
+    window.location.href = "login.html";
     return;
   }
 
@@ -64,6 +56,23 @@ onAuthStateChanged(auth, async function (user) {
     if (nameEl) nameEl.textContent = user.email;
     if (roleEl) roleEl.textContent = "โหลดข้อมูลผู้ใช้ไม่สำเร็จ";
   }
+}
+
+// ทดสอบจริง (2026-09-22) พบว่า onAuthStateChanged ยิง callback แรกด้วย user=null ก่อน
+// Firebase Auth restore session จาก persistence (IndexedDB) เสร็จจริง ทำให้ผู้ใช้ที่ login
+// อยู่จริงถูกเด้งกลับ login.html ทั้งที่ไม่ควร — แก้ด้วย auth.authStateReady() (Firebase JS
+// SDK v10.7+) ซึ่งเป็น API ที่ออกแบบมาเพื่อรอผลลัพธ์ auth state เริ่มต้นที่แน่นอนโดยเฉพาะ
+// แทนการเชื่อ onAuthStateChanged ครั้งแรกตรงๆ — ส่วน onAuthStateChanged ยังคงฟังต่อสำหรับ
+// การเปลี่ยนแปลงหลังจากนั้น (เช่น sign out จากแท็บอื่น/token หมดอายุ) แต่ข้ามการยิงครั้งแรกไป
+// เพราะ authStateReady() จัดการรอบแรกให้แล้ว
+let initialHandled = false;
+auth.authStateReady().then(function () {
+  initialHandled = true;
+  handleUser(auth.currentUser);
+});
+onAuthStateChanged(auth, function (user) {
+  if (!initialHandled) return;
+  handleUser(user);
 });
 
 document.addEventListener("DOMContentLoaded", function () {
