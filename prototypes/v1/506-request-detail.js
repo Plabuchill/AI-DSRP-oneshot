@@ -2,8 +2,9 @@
 // อ่านเอกสารเดียวแบบ real-time ตาม id ใน query string (?id=...) — reuse pattern เดียวกับ
 // case-analysis-506.js / new-506-request.js (Firebase SDK import, firebaseConfig, escapeHtml, error handling)
 //
-// สำคัญ: ปุ่มยืนยัน/ไม่ยืนยันในหน้านี้แก้เฉพาะ field "status" เท่านั้น — จงใจไม่แตะ
-// approverId/approverName หรือ field อื่นใด (ต่างจาก case-analysis-506.js ที่แก้ approver ด้วย)
+// ปุ่มยืนยัน/ไม่ยืนยันในหน้านี้แก้ field "status" พร้อม approverId/approverName เสมอ
+// (เหมือน case-analysis-506.js ทุกประการ — DATA-MODEL.md ระบุว่า approverId/approverName
+// "ไม่บังคับ (null จนกว่าจะตัดสินใจ)" คือต้องถูกเซ็ตทุกครั้งที่มีการตัดสินใจ ไม่ว่าจะกดจากหน้าไหน)
 
 import {
   doc,
@@ -108,8 +109,12 @@ async function init() {
     confirmBtn.disabled = true;
     rejectBtn.disabled = true;
     try {
-      // แก้เฉพาะ field "status" เท่านั้น — ห้ามแตะ approverId/approverName/field อื่น
-      await updateDoc(doc(db, "506Requests", id), { status: newStatus });
+      const currentUser = profile || { id: "", name: "" };
+      await updateDoc(doc(db, "506Requests", id), {
+        status: newStatus,
+        approverId: currentUser.id,
+        approverName: currentUser.name
+      });
     } catch (err) {
       statusEl.textContent = "บันทึกไม่สำเร็จ: " + err.message + " (ตรวจสอบว่าตั้ง Firestore Security Rules ให้เขียนได้แล้วหรือยัง)";
     } finally {

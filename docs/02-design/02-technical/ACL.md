@@ -1,6 +1,6 @@
 # ACL.md — สิทธิ์การเข้าถึง (Access Control List) — รง.506
 
-> **สถานะ**: เอกสารนี้คือ**เป้าหมายการออกแบบ** (target design) ของสิทธิ์ต่อบทบาท — **ยังไม่ได้ enforce จริงในโค้ด** ปัจจุบันทุกผู้ใช้ที่ login สำเร็จเห็น/ทำได้ทุกอย่างเหมือนกันหมด (ไม่มี role-based authorization จริงทั้งฝั่ง UI และ Firestore Security Rules — ดูหมายเหตุใน [`HIGH-LEVEL-ARCHITECTURE.md`](./HIGH-LEVEL-ARCHITECTURE.md) แถว "Auth / Role-based Access") ตารางนี้ใช้เป็นข้อกำหนดสำหรับ implement role-based access ในรอบถัดไป
+> **สถานะ (อัปเดต 2026-09-22)**: ฝั่ง **UI enforce แล้วบางส่วน** — `case-analysis-506.js`/`506-request-detail.js` อ่าน `role` ของผู้ใช้ที่ login แล้วซ่อน/ปิดปุ่ม "ยืนยัน/ไม่ยืนยัน"/"ลบ" ตามตารางข้างล่างจริง (ดูหัวข้อ 4) — **ข้อยกเว้นที่ยังไม่ครอบ**: `new-506-request.js` (หน้าสร้างรายงานใหม่) ยังไม่มี role check ของตัวเอง พึ่งแค่การซ่อนลิงก์ทางเข้าใน `case-analysis-506.js` เท่านั้น — ถ้า Director เข้าหน้านี้ตรงๆ ผ่าน URL ยังสร้างรายงานได้อยู่ (gap ที่ต้องแก้เพิ่ม) — ฝั่ง **Firestore Security Rules ยังไม่ enforce ตาม role เลย** (`allow read, write: if request.auth != null;` เปิดกว้างให้ทุกคนที่ login เขียนได้หมด ไม่ตรงกับตารางนี้ — ดูหมายเหตุใน [`HIGH-LEVEL-ARCHITECTURE.md`](./HIGH-LEVEL-ARCHITECTURE.md) แถว "Auth / Role-based Access") ตารางนี้ยังใช้เป็นข้อกำหนดสำหรับปิด gap ที่เหลือ (Security Rules + role check ของ `new-506-request.js`)
 >
 > **ขอบเขต**: เฉพาะ feature "บันทึกและยืนยัน รง.506" (`FEAT-ANALYSIS-07`) เท่านั้น — โมดูลอื่นทั้ง 7 โมดูลยังเป็น mock data ล้วน ไม่มี backend/role จริงให้กำหนดสิทธิ์
 
@@ -28,10 +28,11 @@
 
 ## 4. สิ่งที่ต้องทำเพิ่มเพื่อ Enforce จริง (ยังไม่ implement)
 
-ตารางนี้เป็นข้อกำหนด ยังไม่มีผลใดๆ ในโค้ดจนกว่าจะทำสิ่งต่อไปนี้:
+ตารางนี้เป็นข้อกำหนด — ส่วนที่ยังไม่มีผลจริงในโค้ด:
 
-- **ฝั่ง UI**: `auth-guard.js`/`case-analysis-506.js`/`new-506-request.js`/`506-request-detail.js` ต้องอ่าน `role` ของผู้ใช้ที่ login แล้วซ่อน/ปิดปุ่มตามตารางข้างบน (เช่น ซ่อนปุ่ม "ยืนยัน/ไม่ยืนยัน"/"ลบ" ถ้า role ไม่ใช่ manager)
-- **ฝั่ง Firestore Security Rules**: ต้องเขียน rule ตรวจ `request.auth`+role จริง (ปัจจุบัน rule เป็น `allow read, write: if request.auth != null;` เปิดกว้างให้ทุกคนที่ login เขียนได้หมด ไม่ตรงกับตารางนี้เลย) — เป็นจุดสำคัญเพราะ**การซ่อนปุ่มฝั่ง UI อย่างเดียวไม่ใช่ความปลอดภัยจริง** ถ้า Security Rules ไม่บังคับด้วย ผู้ใช้ที่รู้วิธีเรียก API ตรงๆ ยังเขียนข้อมูลข้ามสิทธิ์ได้อยู่
+- ✅ **ฝั่ง UI (ทำแล้ว)**: `case-analysis-506.js`/`506-request-detail.js` อ่าน `role` ของผู้ใช้ที่ login แล้วซ่อน/ปิดปุ่มตามตารางข้างบนจริง (ซ่อนปุ่ม "ยืนยัน/ไม่ยืนยัน"/"ลบ" ถ้า role ไม่ใช่ manager)
+- 🔲 **`new-506-request.js` ยังไม่ทำ**: หน้านี้ยังไม่อ่าน `role` เลย — Director (หรือใครก็ตามที่ login) เข้าตรงผ่าน URL แล้วสร้างรายงานได้อยู่ แม้ตารางข้างบนจะห้ามไว้ก็ตาม
+- 🔲 **ฝั่ง Firestore Security Rules ยังไม่ทำ**: ต้องเขียน rule ตรวจ `request.auth`+role จริง (ปัจจุบัน rule เป็น `allow read, write: if request.auth != null;` เปิดกว้างให้ทุกคนที่ login เขียนได้หมด ไม่ตรงกับตารางนี้เลย) — เป็นจุดสำคัญที่สุดเพราะ**การซ่อนปุ่มฝั่ง UI อย่างเดียวไม่ใช่ความปลอดภัยจริง** ถ้า Security Rules ไม่บังคับด้วย ผู้ใช้ที่รู้วิธีเรียก API ตรงๆ ยังเขียนข้อมูลข้ามสิทธิ์ได้อยู่ (รวมถึงเลี่ยง gap ของ `new-506-request.js` ข้างต้นด้วย)
 
 ## 5. Traceability
 
