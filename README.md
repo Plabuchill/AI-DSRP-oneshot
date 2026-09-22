@@ -1,6 +1,7 @@
 # AI-DSRP — AI Disease Surveillance & Response Platform
 
 🔗 **เว็บออนไลน์**: https://ai-dsrp.web.app
+🧪 **ผลทดสอบล่าสุด**: [test-results.md](./docs/03-testing/02-test-result/test-results.md)
 
 ระบบเฝ้าระวังและตอบสนองต่อการระบาดของโรค ที่ช่วยให้เจ้าหน้าที่สาธารณสุข (โรงพยาบาล → เทศบาล → ทีมสอบสวนโรค) รับ ตรวจสอบ และติดตามเคสรายงานโรคได้เร็วขึ้น โดยลดขั้นตอนคีย์ข้อมูลมือด้วย OCR/AI extraction และ auto-route การแจ้งเตือนไปยังทีมที่รับผิดชอบพื้นที่
 
