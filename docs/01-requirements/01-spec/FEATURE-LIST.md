@@ -49,13 +49,13 @@ Feature ID ในเอกสารนี้เป็นการตั้งข
 | FEAT-INTAKE-02 | OCR Review Table | ตรวจสอบ/แก้ไขผล OCR ก่อนยืนยัน (human-in-the-loop) | ✅ |
 | FEAT-INTAKE-03 | Notification Log | แจ้งเตือนทีมสอบสวนโรค 5 เขตตามพื้นที่ | ✅ |
 | FEAT-INTAKE-04 | Spot Map | ปักหมุด + วงรัศมี 100 เมตรจากพิกัด | ✅ |
-| FEAT-INTAKE-05 | OCR/AI extraction เชื่อมต่อจริง | แทน mock ด้วย Document AI/vision model จริง | 🔲 (Phase 1) |
+| FEAT-INTAKE-05 | OCR/AI extraction เชื่อมต่อจริง | แทน mock ด้วย Document AI/vision model จริง | ✅ (Cloud Function `extractCaseReport`, Claude Vision ผ่าน OpenRouter) |
 | FEAT-INTAKE-06 | Google Sheet/Drive เชื่อมต่อจริง | เขียนข้อมูล+ไฟล์ต้นฉบับอัตโนมัติ | 🔲 (Phase 1) |
 | FEAT-INTAKE-07 | Geocoding API จริง | แปลงที่อยู่เป็นพิกัดจริง | 🔲 (Phase 1) |
 | FEAT-INTAKE-08 | LINE OA แจ้งเตือนจริง | แทน mock notification log | 🔲 (Phase 1) |
 | FEAT-INTAKE-09 | แก้ไขแถวที่ยืนยันแล้ว | unlock/ขอสิทธิ์แก้ไขข้อมูลที่ confirm ไปแล้ว | 🔲 (Phase 1) |
-| FEAT-INTAKE-10 | AI Consistency Check | ปุ่มระดับแถวใน OCR Review Table ส่งข้อมูลที่ OCR ดึงได้ (ชื่อ/HN/ที่อยู่/วันป่วย/ผลตรวจ — ไม่ใช่ไฟล์ต้นฉบับ) ให้ AI (Claude) ช่วยตรวจสอบความสมเหตุสมผลก่อนเจ้าหน้าที่กดยืนยัน เป็น advisory เท่านั้น ไม่แก้ข้อมูลอัตโนมัติ (human-in-the-loop) | 🔲 (Phase 1) |
-| FEAT-INTAKE-11 | AI ช่วยจัดประเภทโรคติดต่อ | ปุ่มระดับแถวใน OCR Review Table (เพิ่มจากปุ่ม FEAT-INTAKE-10) ส่งค่าที่กรอก/OCR ได้ (เช่น ผลตรวจ) ไปพร้อมรายชื่อประเภทโรคติดต่อจริงจาก 506Types ให้ AI แนะนำ/เลือกประเภทที่ตรงที่สุด กรอกลง field ใหม่ "ประเภทโรคติดต่อ" (dropdown ผูก 506Types) เป็น advisory เท่านั้น แบบ in-memory ไม่ persist ลง Firestore (Case Intake ยังไม่มี Firestore backing สำหรับเคส) | 🔲 (Phase 1) |
+| FEAT-INTAKE-10 | AI Consistency Check | ปุ่มระดับแถวใน OCR Review Table ส่งข้อมูลที่ OCR ดึงได้ (ชื่อ/HN/ที่อยู่/วันป่วย/ผลตรวจ — ไม่ใช่ไฟล์ต้นฉบับ) ให้ AI (Claude) ช่วยตรวจสอบความสมเหตุสมผลก่อนเจ้าหน้าที่กดยืนยัน เป็น advisory เท่านั้น ไม่แก้ข้อมูลอัตโนมัติ (human-in-the-loop) | ✅ (Cloud Function `assistCaseReview`) |
+| FEAT-INTAKE-11 | AI ช่วยจัดประเภทโรคติดต่อ | ปุ่มระดับแถวใน OCR Review Table (เพิ่มจากปุ่ม FEAT-INTAKE-10) ส่งค่าที่กรอก/OCR ได้ (เช่น ผลตรวจ) ไปพร้อมรายชื่อประเภทโรคติดต่อจริงจาก 506Types ให้ AI แนะนำ/เลือกประเภทที่ตรงที่สุด กรอกลง field ใหม่ "ประเภทโรคติดต่อ" (dropdown ผูก 506Types) เป็น advisory เท่านั้น แบบ in-memory ไม่ persist ลง Firestore (Case Intake ยังไม่มี Firestore backing สำหรับเคส) | ✅ (Cloud Function `suggestDiseaseType`) |
 
 ## FEAT-ANALYSIS — Case Analysis
 
