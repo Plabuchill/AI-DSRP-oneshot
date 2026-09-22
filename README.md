@@ -67,6 +67,14 @@ npx http-server prototypes/v1 -p 8743 -c-1
 firebase deploy --only hosting,firestore:rules
 ```
 
+## ผู้ช่วย AI ที่ใช้พัฒนาเอกสารโปรเจกต์นี้
+
+โปรเจกต์นี้ใช้ subagent เฉพาะทางหลายตัวช่วยเขียน/ปรับปรุงเอกสาร (นิยามอยู่ที่ `.claude/agents/`) — 3 ตัวที่ใช้งานมากที่สุด:
+
+- **`user-journey-writer`** — เขียน User Journey ต่อโมดูล (`docs/02-design/01-prototypes/USER-JOURNEY-*.md`) ทั้ง 5 โมดูลของระบบ
+- **`data-contract-writer`** — เขียน/ปรับปรุง Data Model และ API Spec เชิง conceptual (`DATA-MODEL.md`, `API-SPEC.md`)
+- **`release-plan-writer`** — ปรับ `ROADMAP.md` และ task breakdown ตามผลสัมภาษณ์/ข้อมูลที่ยืนยันแล้ว
+
 ## เอกสารประกอบ
 
 - [DESIGN.md](./DESIGN.md) — Design system (สี, typography, spacing, component guideline)
@@ -75,6 +83,8 @@ firebase deploy --only hosting,firestore:rules
 - [docs/02-design/01-prototypes/USER-JOURNEY-outbreak-dashboard.md](./docs/02-design/01-prototypes/USER-JOURNEY-outbreak-dashboard.md) — User Journey ตัวอย่าง
 - [docs/02-design/02-technical/ACL.md](./docs/02-design/02-technical/ACL.md) — ตารางสิทธิ์ 3 role ของฟีเจอร์ รง.506
 - [docs/03-testing/01-test-plan/v1/](./docs/03-testing/01-test-plan/v1/) — TEST-PLAN.md, ACCEPTANCE-CRITERIA.md, TEST-CASES.xlsx (แผนทดสอบและเกณฑ์การยอมรับของ prototype v1)
+- [test-results.md](./docs/03-testing/02-test-result/test-results.md) — ผลทดสอบจริงล่าสุดบน production
+- [BACKLOG.md](./BACKLOG.md) — งานค้าง/บั๊กที่ต้องแก้ต่อ เรียงตามความสำคัญ
 
 ## Roadmap
 
