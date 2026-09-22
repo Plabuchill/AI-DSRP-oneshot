@@ -15,12 +15,12 @@
 | 1. ทีม/ความสามารถ | ทีมถนัด JavaScript/TypeScript (Node.js ecosystem) มากที่สุด; มีทีม IT/DevOps ของโรงพยาบาล/เทศบาลดูแล infra เองอยู่แล้ว (ดูแล server/patch/backup ได้) |
 | 2. งบประมาณ/การจัดซื้อ | งบจำกัด แต่**เปิดรับ managed cloud pay-as-you-go ได้แล้ว** (เปลี่ยนจากที่เคยยืนยันไว้ก่อนหน้าว่าต้อง self-host on-prem เท่านั้น — ยืนยันใหม่ 2026-09-06 เนื่องจากมี Firebase project จริง "ai-dsrp" อยู่แล้วและต้องการใช้ประโยชน์จากโครงสร้างที่มีอยู่) |
 | 3. Hosting/Deployment | **Managed cloud (Firebase/Google Cloud)** — เปลี่ยนจาก self-host on-prem ที่เคยยืนยันไว้ (ยืนยันใหม่ 2026-09-06); ยอมรับว่าข้อมูลอาจไม่ได้อยู่ในประเทศไทย (Google Cloud region ที่ใกล้ที่สุดคือ `asia-southeast1` สิงคโปร์ — ไม่มี region ในไทย) **ต้องทบทวน PDPA compliance เจาะจงเพิ่มเติมก่อนใช้งานจริงกับข้อมูลสุขภาพ** (encryption at rest, ข้อตกลงประมวลผลข้อมูลกับ Google, retention policy) — ยังไม่ได้ทบทวนในรอบนี้ ถือเป็น open item |
-| 4. Compliance/ความปลอดภัย | ยังไม่สัมภาษณ์รายละเอียดเจาะจง (encryption at rest, retention period ฯลฯ) — รับ PDPA data residency ทั่วไปมาจากข้อ 3 |
+| 4. Compliance/ความปลอดภัย | สัมภาษณ์แล้ว (2026-09-21): มีข้อกำหนดจากหน่วยงาน/กระทรวงสาธารณสุขอยู่แล้ว แต่ผู้ใช้ยังไม่ทราบค่าเจาะจง (encryption at rest, retention period) — ต้องไปถามหน่วยงานก่อน ยังคงเป็น **open item** เหมือนเดิม ห้ามเดาค่าตัวเลข/มาตรฐานใดๆ แทน (รับ PDPA data residency ทั่วไปมาจากข้อ 3 ด้วย) |
 | 5. Scale/Performance | เล็ก (<100 concurrent users, เทศบาลเดียวตามขอบเขต ROADMAP ปัจจุบัน — 4 เขตบริการ, 63 ชุมชน, ทีมสอบสวนโรค 5 ทีม); Real-time sync ของ Dashboard/Alerts (FEAT-ALERT-03, FEAT-REPORT-03) ใช้ polling/refresh ทุก 5-30 วินาทีพอ ไม่ต้อง push จริง (WebSocket/SSE) |
 | 6. AI/ML Service | **สัมภาษณ์รอบ 2 เสร็จแล้ว (2026-09-08)** — เอกสารรายงานผู้ป่วย (รง.506) ที่นำเข้าผ่าน Case Intake เป็นแบบฟอร์มพิมพ์/เขียนมือภาษาไทยผสมกัน (ไม่ใช่พิมพ์ล้วน); ปริมาณการใช้งาน OCR+Geocoding ต่ำ (<1,000 เอกสาร/เดือน) สอดคล้อง scale เล็กที่ยืนยันไว้แล้วในสัมภาษณ์ข้อ 5 (<100 concurrent users, เทศบาลเดียว); ที่อยู่ในรายงาน รง.506 ผสมกันทั้งแบบเมือง (เลขที่บ้านชัดเจน) และแบบชนบท (ระบุเป็นหมู่บ้าน/ตำบล ไม่มีเลขที่บ้านชัดเจน) แล้วแต่เคส — ผลการเลือก vendor ดูตารางหัวข้อ 3 (OCR/Document AI vendor, Geocoding vendor) และ Decision Rationale หัวข้อ 4.5-4.6 |
 | 7. Frontend/Mobile | ต้องการคง multi-page เหมือน prototype เดิม (ไม่ใช่ SPA) แต่ต้องการ framework/component ช่วยให้เรียบง่าย/reuse ได้ดีกว่าปัจจุบัน (ปัจจุบัน copy-paste HTML/JS ซ้ำ 8 หน้า) |
-| 8. Timeline | ยังไม่สัมภาษณ์ |
-| 9. วิสัยทัศน์ระยะยาว | ยังไม่สัมภาษณ์รายละเอียด multi-tenancy — แต่ได้คำตอบเรื่อง maturity preference: ต้องการเทคโนโลยีเก่า/เสถียร หา developer ทดแทนง่าย มีเอกสาร/community ไทยเยอะ (มีผลต่อการเลือก stack มากที่สุดรองจาก learning curve ของทีม) |
+| 8. Timeline | สัมภาษณ์แล้ว (2026-09-21): มี deadline ตายตัว — ต้องขึ้นใช้งานจริงก่อนช่วงระบาดหนักปีหน้า (ประมาณ พ.ค.-ต.ค.) — หมายเหตุ: ควรบันทึกเข้า `ROADMAP.md` ผ่าน skill `release-plan-builder` แยกต่างหาก (นอกขอบเขตของเอกสารนี้ เพราะไม่มี Feature ID เฉพาะ เป็น cross-cutting/project-level) |
+| 9. วิสัยทัศน์ระยะยาว | สัมภาษณ์แล้ว (2026-09-21): ยืนยันชัดเจนว่าใช้แค่เทศบาลนี้เดียว ไม่มีแผนขยาย (single-tenant) — ไม่ต้องออกแบบรองรับ multi-tenancy; คงข้อมูลเดิมเรื่อง maturity preference: ต้องการเทคโนโลยีเก่า/เสถียร หา developer ทดแทนง่าย มีเอกสาร/community ไทยเยอะ (มีผลต่อการเลือก stack มากที่สุดรองจาก learning curve ของทีม) |
 
 ---
 
@@ -47,11 +47,11 @@
 | Hosting/Infrastructure platform (เจาะจง) | **Firebase Hosting (หรือ Cloud Run สำหรับ backend ที่ซับซ้อนกว่า) + Cloud Functions** | จับคู่ Firebase ecosystem เดียวกับ Firestore ที่เพิ่งยืนยัน ลดความซับซ้อนการดูแล/จัดการ credential แยกส่วน; ยังคงใช้ Node.js (Cloud Functions รองรับ Node.js runtime) สอดคล้องกับ Backend/API runtime ที่ยืนยันไว้ก่อนหน้า (Node.js + Express/Fastify) — หมายเหตุ: Cloud Functions มีข้อจำกัดเรื่อง cold start/execution time เทียบกับ self-host VM แบบเดิมที่เคยวางแผนไว้ ต้องพิจารณาถ้ามี long-running job (เช่น batch report generation) | — | FEAT-PLATFORM-01 |
 | OCR/Document AI vendor | **Claude Vision (Anthropic multimodal LLM) เรียกผ่าน OpenRouter API** (แทนการเรียก Anthropic SDK ตรง) — ยืนยันใหม่ 2026-09-14: เปลี่ยนเฉพาะ routing/access layer เท่านั้น โมเดลยังเป็น Claude เดิมทุกประการ ไม่ได้เปลี่ยน vendor — สาเหตุคือผู้ใช้มีบัญชี/API key ของ OpenRouter อยู่แล้วแต่ยังไม่มีบัญชี Anthropic โดยตรง การผ่าน OpenRouter (ซึ่งรองรับโมเดล Anthropic อยู่แล้วในแคตตาล็อก) แก้ปัญหาการเข้าถึงได้โดยไม่ต้องแลกกับคุณภาพ/ความแม่นยำ — การตัดสินใจเดิมที่ฟันธง Claude เหนือ GPT Vision ยังคงเดิมไม่เปลี่ยนแปลง | เอกสารมีลายมือภาษาไทยปนอยู่ ซึ่ง OCR แบบดั้งเดิมทุกเจ้า (Google Document AI, AWS Textract, Azure Document Intelligence) รองรับการอ่านลายมือภาษาไทยได้แย่มาก/ไม่รองรับเป็นทางการ ทำให้เกณฑ์ "ecosystem fit กับ Firebase/GCP ที่ยืนยันไปแล้วทุก component ก่อนหน้า" ใช้ไม่ได้ผลในเคสนี้ — ต้องเลือกความแม่นยำเหนือ ecosystem fit เพราะเป็น hard requirement ทางเทคนิค ไม่ใช่ preference (สัมภาษณ์หมวด 6, 2026-09-08); ปริมาณต่ำ (<1,000 เอกสาร/เดือน) ทำให้ส่วนต่างต้นทุนระหว่าง vendor ไม่มีนัยสำคัญ; ได้ผลลัพธ์เป็นข้อมูลโครงสร้าง (JSON) ตรงจาก prompt/function-calling ได้เลยโดยไม่ต้อง train custom model แบบที่ Document AI Form Parser ต้องทำ นอกจากนี้ routing layer นี้ (เรียก Claude ผ่าน OpenRouter) ใช้ร่วมกันกับ Cloud Function อื่นที่เรียก Claude เช่นกันแต่ยังไม่มีแถวยืนยันแยกของตัวเองใน TECH-STACK.md ได้แก่ assistCaseReview (FEAT-INTAKE-10), suggestDiseaseType (FEAT-ANALYSIS-08/FEAT-INTAKE-11), summarizeDiseaseTrend (FEAT-ANALYSIS-09) — ทั้งหมดเปลี่ยนมาเรียกผ่าน OpenRouter พร้อมกันในรอบนี้ | Google Document AI (คะแนน 3.40), Azure Document Intelligence (2.45), AWS Textract (2.30) — ดู Decision Rationale หัวข้อ 4.5 | FEAT-INTAKE-05 |
 | Geocoding vendor | **Google Maps Geocoding API** | ที่อยู่แบบเมือง (เลขที่บ้านชัดเจน) แม่นยำสูงมากกับ Google Maps; ที่อยู่แบบชนบท (หมู่/ตำบล) แม่นยำระดับดี-ปานกลาง แต่ระบบมีปุ่มแก้พิกัดด้วยมือใน Case Intake อยู่แล้ว (built ไว้แล้วใน prototype) เป็น fallback ที่ตรงจุดอ่อนนี้พอดี — ไม่ต้องรอความแม่นยำ 100% จาก geocoder ก็ใช้งานได้จริง (สัมภาษณ์หมวด 6, 2026-09-08); อยู่ ecosystem เดียวกับ Firebase/GCP ที่ยืนยันไปแล้วในทุก component ก่อนหน้า (Auth, Hosting, Database); ปริมาณต่ำ (<1,000/เดือน) อยู่ในโควตาเครดิตฟรี $200/เดือนของ Google Cloud สบายๆ ไม่มีต้นทุนจริงที่ scale นี้ | Longdo Map API (คะแนน 3.825), OpenStreetMap Nominatim (3.125) — ดู Decision Rationale หัวข้อ 4.6 | FEAT-INTAKE-07 |
-| Case Clustering (library/service) | *ยังไม่สัมภาษณ์ — backlog รอสัมภาษณ์รอบหน้า* | — | — | FEAT-ANALYSIS-04 |
-| AI Vision QC vendor | *ยังไม่สัมภาษณ์ — backlog รอสัมภาษณ์รอบหน้า* | — | — | FEAT-CONTROL-05 |
-| Location tracking (LIFF app) tech | *ยังไม่สัมภาษณ์ — backlog รอสัมภาษณ์รอบหน้า* | — | — | FEAT-CONTROL-04 |
-| Reporting/BI tool | *ยังไม่สัมภาษณ์ — backlog รอสัมภาษณ์รอบหน้า* | — | — | FEAT-REPORT-03 |
-| Monitoring/Logging | *ยังไม่สัมภาษณ์ — backlog รอสัมภาษณ์รอบหน้า* | — | — | FEAT-PLATFORM-01 |
+| Case Clustering (library/service) | **BigQuery GIS** | ผู้ใช้ยืนยันเลือกเพื่อให้เข้ากับ ecosystem GCP ที่ยืนยันไปแล้วทุก component ก่อนหน้า (Firestore, Auth, Hosting, Geocoding) — **ต้องบันทึก trade-off ตรงไปตรงมา**: (1) ต้องมี pipeline ส่งข้อมูลจาก Firestore → BigQuery เพิ่มเติมที่ยังไม่มีอยู่ในสถาปัตยกรรมปัจจุบันเลย (เพิ่มความซับซ้อนใหม่) (2) scale ที่ยืนยันไว้ในสัมภาษณ์ข้อ 5 เล็กมาก (<100 concurrent users, เทศบาลเดียว) ซึ่ง BigQuery ถูกออกแบบมาสำหรับ data warehouse ขนาดใหญ่ อาจเกินความจำเป็นเทียบกับการเขียน custom clustering algorithm ใน Cloud Functions (Node.js) ที่ทีมถนัดอยู่แล้วโดยตรง — ผู้ใช้รับทราบ trade-off นี้แล้วและยืนยันเลือก BigQuery GIS (สัมภาษณ์ 2026-09-21) | เขียน custom clustering algorithm ใน Cloud Functions (Node.js) — เข้ากับ scale เล็กและ stack ทีมโดยตรงกว่า แต่ทีมต้องออกแบบ/ทดสอบ logic เอง; Python microservice + scikit-learn (DBSCAN) — algorithm มาตรฐานกว่า แต่เพิ่ม Python runtime แยกจาก Node.js stack ที่เหลือทั้งหมด — ดู Decision Rationale หัวข้อ 4.8 | FEAT-ANALYSIS-04 |
+| AI Vision QC vendor | **Claude Vision (Anthropic) ผ่าน OpenRouter API** — ใช้ routing layer เดียวกับที่ยืนยันไว้แล้วสำหรับ OCR (หัวข้อ 4.7) | ต่อยอด routing layer/pattern เดิมที่พิสูจน์แล้วว่าใช้งานได้กับ Cloud Function อื่น (extractCaseReport, assistCaseReview, suggestDiseaseType, summarizeDiseaseTrend) ไม่ต้องตัดสินใจ vendor ใหม่หรือเพิ่ม secret ใหม่ (ใช้ `OPENROUTER_API_KEY` เดิม); งาน QC ต้องการ "เหตุผลเชิงบริบท" (รูปนี้ตรงกับพื้นที่/เวลาที่ต้องพ่นจริงไหม) ซึ่งเป็นจุดแข็งของ multimodal LLM มากกว่า object/label detection แบบดั้งเดิม (สัมภาษณ์ 2026-09-21) | Google Cloud Vision API — ecosystem fit กับ Firebase/GCP แต่เหมาะกับ label/object detection ตรงไปตรงมา ไม่เชิงเหตุผล/บริบทเท่า LLM; สร้าง custom ML model เอง — ทีมไม่มี ML expertise/training data พร้อม ไม่เหมาะกับ scale เล็ก — ดู Decision Rationale หัวข้อ 4.9 | FEAT-CONTROL-05 |
+| Location tracking (LIFF app) tech | **LINE LIFF (LINE Front-end Framework) mini-app** ขอสิทธิ์ Geolocation API แล้วส่งพิกัดไปยัง Cloud Function/Firestore เป็นระยะ | เปิดใช้งานได้จาก LINE OA ที่ผูกไว้เป็นข้อจำกัดเดิมอยู่แล้ว (ไม่ต้องแยกติดตั้งแอปใหม่); LIFF SDK เป็น JavaScript ทีมใช้งานได้ทันทีตาม stack ที่ยืนยันไว้แล้วทั้งหมด (สัมภาษณ์ข้อ 1); ต้องบันทึก trade-off ตรงไปตรงมา: การขอ location ผ่าน LIFF (browser-based) ต้องเปิดหน้าจอค้างไว้ (foreground) เพื่อส่งพิกัดต่อเนื่อง ไม่เสถียรเท่า native app ที่ทำ background location tracking ได้ — ต้องพิจารณาร่วมกับความสมัครใจ/กฎหมายแรงงานเรื่องการติดตามตำแหน่งพนักงานภาคสนามที่ `ROADMAP.md` Phase 3 เคยตั้งข้อสังเกตไว้แล้ว (สัมภาษณ์ 2026-09-21) | สร้าง native mobile app (Android/iOS) แยก — ติดตามพิกัดพื้นหลังได้เสถียรกว่า แต่ทีมไม่มี mobile dev skill (ขัดกับสัมภาษณ์ข้อ 1) เพิ่มงาน deploy/approve app store; Manual check-in ผ่าน spot map เดิม — ไม่ต้องใช้เทคโนโลยีใหม่เลย แต่เสียจุดประสงค์หลักของ real-time tracking ใน Phase 3 ไปเลย — ดู Decision Rationale หัวข้อ 4.10 | FEAT-CONTROL-04 |
+| Reporting/BI tool | **สร้างหน้าสรุปรายงานเองในแอป (Node.js/EJS ตาม Frontend stack ที่ยืนยันไว้แล้ว)** ดึงข้อมูลจาก Firestore โดยตรง แล้ว export เป็น PDF และส่งผ่าน LINE OA | ตอบโจทย์ `ROADMAP.md` Phase 5 ที่ระบุชัดว่าต้อง "ส่งผู้บริหารผ่าน LINE หรือ PDF" ได้ตรงที่สุดโดยไม่ต้องเขียน glue code เชื่อมต่อ BI tool ภายนอกเพื่อ export ออกมาเป็น PDF/LINE อีกที; ไม่เพิ่ม vendor ใหม่ ต่อยอดจากหน้า "Reports" ที่มี mock UI อยู่แล้วใน prototype; ใช้ stack เดียวกันทั้งหมด (Node.js/EJS) ตามที่ยืนยันไว้แล้วในหัวข้อ 4.2 (สัมภาษณ์ 2026-09-21) | Google Looker Studio — ecosystem fit กับ GCP และดู dashboard เชิงลึกได้ดีกว่า แต่ต้องต่อ Firestore→BigQuery เพิ่ม และไม่สามารถ automate การส่งออกเป็น LINE/PDF ได้ตรงๆ ต้องเขียน glue code เพิ่มอยู่ดี; Power BI — มีค่า license เพิ่ม และอยู่นอก GCP ecosystem ที่ยืนยันไปแล้วทุกจุด | FEAT-REPORT-03 |
+| Monitoring/Logging | **Cloud Logging + Cloud Monitoring (GCP native)** | อยู่ใน Firebase project "ai-dsrp" เดียวกับทุก component ที่ยืนยันไปแล้ว ไม่ต้อง setup/เพิ่ม vendor ใหม่ ไม่มีต้นทุนเพิ่มที่ scale เล็ก (<100 users) นี้ (สัมภาษณ์ 2026-09-21) | 3rd-party APM (เช่น Sentry, Datadog) — UX การ alert/track error ดีกว่า แต่เพิ่ม vendor และค่าใช้จ่ายที่เกินความจำเป็นสำหรับ scale ปัจจุบัน | FEAT-PLATFORM-01 |
 
 ---
 
@@ -74,7 +74,9 @@ Weighted Scoring Model (น้ำหนัก: Learning curve ทีม 30%, Mat
 
 **เหตุผล**: ทีมถนัด JS/TS อยู่แล้ว (คะแนนสูงสุดด้าน learning curve ซึ่งมีน้ำหนักมากที่สุด), self-host ง่ายที่สุด (เข้ากับ self-host on-prem ที่ยืนยันไว้), ใช้ภาษาเดียวกับ frontend ทั้ง stack ลดความซับซ้อนการดูแลระยะยาวโดยทีม IT เดิม
 
-**Trade-off ที่ต้องบันทึกไว้ (open question)**: Laravel/.NET Core/Spring Boot มีคะแนนใกล้เคียงกันเพราะเป็น stack ที่หน่วยงานราชการไทยคุ้นเคย/มีผู้รับเหมาพร้อมทำต่อมากกว่า Node.js — **ถ้ามีแผนส่งต่อให้ผู้รับเหมาภายนอกดูแลในอนาคต (ไม่ใช่ทีม IT เดิม) อาจพลิกน้ำหนักได้** ต้องยืนยันเพิ่มถ้ายังไม่แน่ใจ (สัมภาษณ์ข้อ 1 ถามเรื่อง "แผนดูแลต่อหลังส่งมอบ" ไว้เพียงว่า "ทีม IT เดิมดูแลได้" แต่ไม่ได้ยืนยันชัดว่าจะไม่ส่งต่อให้ผู้รับเหมาภายนอกในอนาคต)
+**Trade-off ที่เคยบันทึกไว้ (open question — ปิดแล้ว 2026-09-21)**: Laravel/.NET Core/Spring Boot มีคะแนนใกล้เคียงกันเพราะเป็น stack ที่หน่วยงานราชการไทยคุ้นเคย/มีผู้รับเหมาพร้อมทำต่อมากกว่า Node.js — เดิมตั้งข้อสังเกตไว้ว่า "ถ้ามีแผนส่งต่อให้ผู้รับเหมาภายนอกดูแลในอนาคต (ไม่ใช่ทีม IT เดิม) อาจพลิกน้ำหนักได้"
+
+**ปิด open question (2026-09-21)**: ผู้ใช้ยืนยันแล้วว่าทีม IT เดิมจะดูแลต่อเนื่อง ไม่มีแผนส่งต่อให้ผู้รับเหมาภายนอก ดังนั้น Node.js + Express (หรือ Fastify) ยังคงเป็นทางเลือกที่เหมาะสม ไม่ต้องพิจารณา Laravel/.NET Core อีก — ปิด open question นี้แล้ว (ไม่ใช่ open item อีกต่อไป)
 
 ### 4.2 Frontend framework
 
@@ -178,6 +180,54 @@ Weighted Scoring Model (น้ำหนัก: ความแม่นยำท
 
 ---
 
+### 4.8 Case Clustering (library/service)
+
+**บริบท**: `FEAT-ANALYSIS-04` ต้องการจัดกลุ่มเคสตามพื้นที่/เวลาเพื่อดูรูปแบบการระบาด มีทางเลือกอย่างน้อย 3 ทางที่พิจารณาอย่างมีนัยสำคัญ
+
+**ทางที่เลือก**: BigQuery GIS
+
+**เหตุผล**: ผู้ใช้ยืนยันเลือกเพื่อให้เข้ากับ ecosystem GCP ที่ยืนยันไปแล้วทุก component ก่อนหน้า (Firestore, Auth, Hosting, Geocoding) — เป็นเกณฑ์ ecosystem fit เดียวกับที่ใช้ตัดสินใจ Hosting/Auth/Geocoding มาตลอด (สัมภาษณ์ 2026-09-21)
+
+**ตัวเลือกอื่นที่พิจารณา**:
+- เขียน custom clustering algorithm ใน Cloud Functions (Node.js) — เข้ากับ scale เล็กและ stack ทีมโดยตรงกว่า แต่ทีมต้องออกแบบ/ทดสอบ logic เอง
+- Python microservice + scikit-learn (DBSCAN) — algorithm มาตรฐานกว่า แต่เพิ่ม Python runtime แยกจาก Node.js stack ที่เหลือทั้งหมด
+
+**Trade-off ที่ต้องบันทึกไว้ (ผู้ใช้รับทราบแล้ว ไม่ใช่ open question)**:
+1. ต้องมี pipeline ส่งข้อมูลจาก Firestore → BigQuery เพิ่มเติมที่ยังไม่มีอยู่ในสถาปัตยกรรมปัจจุบันเลย (เพิ่มความซับซ้อนใหม่ให้กับระบบ)
+2. scale ที่ยืนยันไว้ในสัมภาษณ์ข้อ 5 เล็กมาก (<100 concurrent users, เทศบาลเดียว) ซึ่ง BigQuery ถูกออกแบบมาสำหรับ data warehouse ขนาดใหญ่ อาจเกินความจำเป็นเทียบกับการเขียน custom clustering algorithm ใน Cloud Functions ที่ทีมถนัดอยู่แล้วโดยตรง
+
+ผู้ใช้รับทราบ trade-off ทั้งสองข้อนี้แล้วและยืนยันเลือก BigQuery GIS ในสัมภาษณ์รอบ 2026-09-21 — ไม่ใช่การเดาของผู้เขียนเอกสาร
+
+### 4.9 AI Vision QC vendor
+
+**บริบท**: `FEAT-CONTROL-05` ต้องการตรวจสอบคุณภาพงานภาคสนาม (เช่น รูปหลักฐานการพ่นสารเคมี/กำจัดแหล่งเพาะพันธุ์) ด้วย AI มีทางเลือกอย่างน้อย 3 ทาง
+
+**ทางที่เลือก**: Claude Vision (Anthropic) ผ่าน OpenRouter API — routing layer เดียวกับที่ยืนยันไว้แล้วสำหรับ OCR (หัวข้อ 4.7)
+
+**เหตุผล**: ต่อยอด routing layer/pattern เดิมที่พิสูจน์แล้วว่าใช้งานได้กับ Cloud Function อื่น (`extractCaseReport`, `assistCaseReview`, `suggestDiseaseType`, `summarizeDiseaseTrend`) ไม่ต้องตัดสินใจ vendor ใหม่หรือเพิ่ม secret ใหม่ (ใช้ `OPENROUTER_API_KEY` เดิม); งาน QC ต้องการ "เหตุผลเชิงบริบท" (รูปนี้ตรงกับพื้นที่/เวลาที่ต้องพ่นจริงไหม) ซึ่งเป็นจุดแข็งของ multimodal LLM มากกว่า object/label detection แบบดั้งเดิม (สัมภาษณ์ 2026-09-21)
+
+**ตัวเลือกอื่นที่พิจารณา**:
+- Google Cloud Vision API — ecosystem fit กับ Firebase/GCP แต่เหมาะกับ label/object detection ตรงไปตรงมา ไม่เชิงเหตุผล/บริบทเท่า LLM
+- สร้าง custom ML model เอง — ทีมไม่มี ML expertise/training data พร้อม ไม่เหมาะกับ scale เล็ก
+
+**Trade-off ที่ต้องบันทึกไว้**: การเลือก Claude Vision ผ่าน OpenRouter สืบทอด trade-off เดิมจากหัวข้อ 4.7 มาด้วย (latency/markup ของ routing layer, ต้องยืนยัน model slug ตอน implement) — ไม่มี trade-off ใหม่เพิ่มเติมนอกจากนี้ในรอบสัมภาษณ์นี้
+
+### 4.10 Location tracking (LIFF app) tech
+
+**บริบท**: `FEAT-CONTROL-04` ต้องการติดตามตำแหน่งทีมภาคสนามระหว่างปฏิบัติงาน มีทางเลือกอย่างน้อย 3 ทาง
+
+**ทางที่เลือก**: LINE LIFF (LINE Front-end Framework) mini-app ขอสิทธิ์ Geolocation API แล้วส่งพิกัดไปยัง Cloud Function/Firestore เป็นระยะ
+
+**เหตุผล**: เปิดใช้งานได้จาก LINE OA ที่ผูกไว้เป็นข้อจำกัดเดิมอยู่แล้ว (ไม่ต้องแยกติดตั้งแอปใหม่); LIFF SDK เป็น JavaScript ทีมใช้งานได้ทันทีตาม stack ที่ยืนยันไว้แล้วทั้งหมด (สัมภาษณ์ข้อ 1) (สัมภาษณ์ 2026-09-21)
+
+**ตัวเลือกอื่นที่พิจารณา**:
+- สร้าง native mobile app (Android/iOS) แยก — ติดตามพิกัดพื้นหลังได้เสถียรกว่า แต่ทีมไม่มี mobile dev skill (ขัดกับสัมภาษณ์ข้อ 1) เพิ่มงาน deploy/approve app store
+- Manual check-in ผ่าน spot map เดิม — ไม่ต้องใช้เทคโนโลยีใหม่เลย แต่เสียจุดประสงค์หลักของ real-time tracking ใน Phase 3 ไปเลย
+
+**Trade-off ที่ต้องบันทึกไว้ (open question)**: การขอ location ผ่าน LIFF (browser-based) ต้องเปิดหน้าจอค้างไว้ (foreground) เพื่อส่งพิกัดต่อเนื่อง ไม่เสถียรเท่า native app ที่ทำ background location tracking ได้ — ต้องพิจารณาร่วมกับความสมัครใจ/กฎหมายแรงงานเรื่องการติดตามตำแหน่งพนักงานภาคสนามที่ `ROADMAP.md` Phase 3 เคยตั้งข้อสังเกตไว้แล้ว (ยังไม่ได้ทบทวนประเด็นกฎหมายแรงงานนี้ในรอบสัมภาษณ์ 2026-09-21 — เป็น open item ที่แยกจากการเลือกเทคโนโลยี)
+
+---
+
 ## 5. เอกสาร Conceptual ที่ควร Sync ตาม
 
 > **ยังไม่ sync ให้เองในรอบนี้** — ต้องเรียก skill/subagent ของเอกสารนั้นแยกเพื่อทำการ sync จริง
@@ -188,6 +238,9 @@ Weighted Scoring Model (น้ำหนัก: ความแม่นยำท
 | `DATA-MODEL.md` | Database engine ยืนยันเป็น Firestore แล้ว — ควรเพิ่มคอลัมน์ Native Type ใน Entity Dictionary ตาม convention ของเอกสาร (เช่น string→Firestore string field, reference→Firestore document reference หรือ denormalized field) โดยเฉพาะ entity ใหม่ `SURVEILLANCE_REPORT_506`/`REPORT_506_APPROVAL_LOG` และ entity อื่นทั้งหมด — ยังไม่ sync ให้เองในรอบนี้; **entity `USER`** (ที่มี Gap note เดิมเรื่อง "ยังไม่มี USER/role entity ที่เป็นทางการ") ควรทบทวนใหม่เพราะตอนนี้มี Auth จริงแล้ว (Firebase Authentication ยืนยัน 2026-09-07) — ควรพิจารณาว่าจะผูก Firebase Auth UID เข้ากับ document ID ของ `users` collection หรือเก็บเป็น field ใหม่แยกต่างหาก (ยังไม่ตัดสินใจในรอบนี้ ต้องเรียก `data-contract-builder` แยก) |
 | `API-SPEC.md` | ยังไม่ต้อง sync รอบนี้ — protocol จริง (REST/GraphQL) ยังไม่อยู่ใน scope การสัมภาษณ์รอบนี้ (อยู่ในความรับผิดชอบของ Backend/API runtime ที่เพิ่งยืนยัน แต่ยังไม่มีการยืนยันเจาะจงเรื่อง protocol) |
 | `HIGH-LEVEL-ARCHITECTURE.md` (เพิ่มเติม 2026-09-08) | หัวข้อ 6 (Component Breakdown) — แถว "บริการดึงข้อมูลจากภาพเอกสาร (OCR/Document AI)" ควรอัปเดตให้ระบุ "Claude Vision (Anthropic)" แทน placeholder เดิม; แถว "บริการ Geocoding" ควรอัปเดตให้ระบุ "Google Maps Geocoding API" แทน placeholder เดิม — ยังไม่ sync ให้เองในรอบนี้ ต้องเรียก skill `architecture-builder` แยกถ้าต้องการ sync จริง |
+| `HIGH-LEVEL-ARCHITECTURE.md` (เพิ่มเติม 2026-09-21) | หัวข้อ 6 (Component Breakdown) — ควรเพิ่มแถว/ปรับปรุงคำอธิบายให้ตรงกับที่ยืนยันแล้วในรอบนี้: Case Clustering (BigQuery GIS), AI Vision QC (Claude Vision ผ่าน OpenRouter), Location tracking (LINE LIFF mini-app), Reporting/BI (in-app report page ดึงจาก Firestore + export PDF/LINE), Monitoring (Cloud Logging/Cloud Monitoring) — ยังไม่ sync ให้เองในรอบนี้ ต้องเรียก skill `architecture-builder` แยกถ้าต้องการ sync จริง |
+| `DATA-MODEL.md` (เพิ่มเติม 2026-09-21) | หัวข้อ Cross-cutting concerns — ควรปรับสถานะ multi-tenancy จากที่เคยเขียนว่า "ไม่อยู่ใน scope ของ Build Plan รอบนี้"/"ยังไม่สัมภาษณ์" เป็น **"ยืนยันแล้ว (2026-09-21): single-tenant เท่านั้น ไม่ต้องออกแบบรองรับ multi-tenancy"** — ยังไม่ sync ให้เองในรอบนี้ ต้องเรียก skill `data-contract-builder` แยกถ้าต้องการ sync จริง |
+| `ROADMAP.md` (เพิ่มเติม 2026-09-21) | ควรบันทึก deadline ตายตัวที่ยืนยันแล้ว (ต้องขึ้นใช้งานจริงก่อนช่วงระบาดหนักปีหน้า ประมาณ พ.ค.-ต.ค.) — เป็น cross-cutting item ไม่มี Feature ID เฉพาะ **ไม่ sync ให้เองในรอบนี้** ต้องเรียก skill `release-plan-builder` แยกต่างหาก |
 
 ---
 
@@ -196,3 +249,6 @@ Weighted Scoring Model (น้ำหนัก: ความแม่นยำท
 - ระบุ "Express (หรือ Fastify)" และ "EJS (หรือ Handlebars)" เป็นคู่ตัวเลือกย่อยตามที่ Build Plan เขียนไว้ (ไม่ได้ฟันธงเจาะจงตัวเดียวในตัวเลือกย่อยนี้) เพราะ Build Plan ที่ได้รับมาระบุไว้เป็นคู่ทั้งสองจุดโดยไม่ได้ชี้ขาดตัวเดียว — ถ้าต้องการฟันธงเจาะจง (เช่น Express อย่างเดียว) ควรยืนยันเพิ่มในสัมภาษณ์รอบหน้าหรือแจ้งกลับให้แก้ไฟล์นี้
 - การเปลี่ยนจาก self-host/data-residency-ไทย เป็น managed cloud (Firebase) เป็นการพลิกกลับเงื่อนไขที่เคยยืนยันไว้ในสัมภาษณ์รอบก่อน (2026-08-26) — ยังไม่มีการทบทวน PDPA compliance เจาะจงสำหรับข้อมูลอยู่นอกประเทศ (encryption at rest, DPA กับ Google, retention) เป็น **open item ที่ต้องสัมภาษณ์เพิ่มเติมก่อนใช้งานจริงกับข้อมูลสุขภาพ** — ไม่ใช่การอนุมัติ compliance ให้เองในรอบนี้
 - การเลือก Claude Vision (Anthropic) สำหรับ OCR (หัวข้อ 3, 4.5) เพิ่ม open item PDPA ใหม่ต่อยอดจากข้อข้างต้น: ภาพเอกสาร รง.506 มีข้อมูลสุขภาพ (ชื่อ/HN/ที่อยู่/ผลตรวจ) และจะถูกส่งไปยัง Anthropic API ซึ่งอยู่นอก Google Cloud ecosystem ที่มี open item เดิมอยู่แล้ว — ยังไม่มีการทบทวน encryption in transit, data processing agreement กับ Anthropic, หรือ retention policy ของภาพที่ส่งไป เป็น **open item ที่ต้องทบทวน PDPA compliance ร่วมกับจุดเดิมก่อนใช้งานจริง ไม่ใช่การอนุมัติให้ส่งข้อมูลสุขภาพออกได้แล้วในรอบนี้**
+- **(เพิ่มเติม 2026-09-21)** Build Plan ที่ได้รับยืนยันการเลือก BigQuery GIS สำหรับ Case Clustering (หัวข้อ 3, 4.8) แต่ไม่ได้ลงรายละเอียดว่า pipeline ส่งข้อมูล Firestore → BigQuery จะ sync แบบไหน (เช่น Firestore→BigQuery extension ของ Firebase เอง แบบ real-time, หรือ scheduled batch export ผ่าน Cloud Function/Cloud Scheduler) — ผู้เขียนเอกสารนี้**ไม่ได้ตัดสินใจแทน**เพราะเป็นรายละเอียด implementation ที่ควรอยู่ใน `DETAILED-DESIGN.md`/`HIGH-LEVEL-ARCHITECTURE.md` ไม่ใช่ `TECH-STACK.md` — ทิ้งไว้เป็น open item ที่ต้องออกแบบต่อเมื่อเรียก skill `architecture-builder`/`detailed-design-builder`
+- **(เพิ่มเติม 2026-09-21)** หัวข้อ 4.8-4.10 (Case Clustering, AI Vision QC, Location tracking) เขียนในรูปแบบย่อหน้า "ทางที่เลือก/เหตุผล/ตัวเลือกอื่น/Trade-off" แทนที่จะทำ Weighted Scoring Model แบบตารางเหมือนหัวข้อ 4.1-4.6 เพราะ Build Plan ที่ได้รับมาไม่ได้ให้น้ำหนักเกณฑ์ (%) หรือคะแนนตัวเลขเจาะจงสำหรับ 3 จุดนี้ — การใส่ตัวเลขคะแนนเองจะเป็นการเดาเหตุผลที่ไม่มีใน Build Plan จึงเลือกคงเป็นรูปแบบบรรยายแทน ถ้าต้องการตารางคะแนนแบบเดียวกัน ควรยืนยันน้ำหนัก/คะแนนเพิ่มเติมในสัมภาษณ์รอบหน้า
+- **(เพิ่มเติม 2026-09-21)** ข้อกำหนด Compliance จากหน่วยงาน/กระทรวงสาธารณสุข (หมวด 4) และประเด็นกฎหมายแรงงานเรื่องการติดตามตำแหน่งพนักงานภาคสนามผ่าน LIFF (หัวข้อ 4.10) ยังคงเป็น **open item ที่ยังไม่ได้ทบทวน** ไม่ใช่การอนุมัติให้ใช้งานได้แล้วในรอบนี้ — ต้องติดตามผลจากหน่วยงานก่อนใช้งานจริงกับข้อมูลสุขภาพ/การติดตามพนักงาน
