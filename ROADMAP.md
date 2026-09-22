@@ -2,6 +2,8 @@
 
 รวบรวมจาก 2 แหล่ง: (1) ขอบเขตที่ยังไม่ได้ทำซึ่งระบุไว้แล้วใน [`prototypes/v1/BUILD-PLAN.md`](./prototypes/v1/BUILD-PLAN.md) และ [`test-docs/v1/TEST-PLAN.md`](./test-docs/v1/TEST-PLAN.md) ระหว่างที่สร้าง prototype, และ (2) pain point 5 ข้อที่รวบรวมจากทีมงานจริง (โรงพยาบาล/เทศบาล, ทีมสอบสวนโรค, ทีมควบคุมโรค/ทีมพ่น, ทีม อสม., ผู้บริหาร) — จัดกลุ่มเป็นเฟสตามลำดับที่ควรทำก่อน-หลัง ยังไม่ใช่ commitment ด้านเวลา เป็นแนวทางลำดับความสำคัญเท่านั้น
 
+**Deadline ตายตัว (ยืนยันแล้ว 2026-09-21)**: ต้องขึ้นใช้งานจริงก่อนช่วงระบาดหนักปีหน้า (ประมาณ พ.ค.-ต.ค.) — เป็น cross-cutting constraint ไม่ผูก Phase เดียว กระทบการจัดลำดับความสำคัญของ Phase 1-7 ที่ยังไม่เสร็จทั้งหมด (ดู `TECH-STACK.md` หัวข้อ 1 ข้อ 8) — ยังไม่ได้แปลงเป็นการจัดลำดับ Phase ใหม่/ตาราง milestone ในรอบนี้ เป็นการบันทึกข้อเท็จจริงเท่านั้น
+
 ## Phase 0 — Prototype (เสร็จแล้ว)
 
 - [x] Design system (`DESIGN.md`) — Earth Tone + Minimalist + Muji
@@ -69,12 +71,12 @@
 - **Backend/API จริง** แทนที่ mock data ที่ฝังอยู่ใน JS ของแต่ละหน้า
 - **ระบบ login และสิทธิ์ผู้ใช้** (role-based access) — แยกสิทธิ์ระหว่างเจ้าหน้าที่โรงพยาบาล/เทศบาล/ทีมสอบสวนโรค/ทีมพ่น/อสม./ผู้บริหาร
 - **Data persistence/database** เก็บประวัติเคสและไฟล์ต้นฉบับระยะยาว
-- [ ] Sync `HIGH-LEVEL-ARCHITECTURE.md` หัวข้อ 6 (Component Breakdown) ให้ระบุเทคโนโลยีจริงตาม `TECH-STACK.md` (แถว Web App/Frontend และ API Server/Backend) (FEAT-PLATFORM-01) — อ้างจาก `TECH-STACK.md` หัวข้อ 5
-- [ ] ยืนยัน Database engine, Auth/Identity provider, Hosting/Infrastructure เจาะจง, Monitoring/Logging ผ่าน `tech-stack-builder` รอบ 2 (FEAT-PLATFORM-02, FEAT-PLATFORM-03) — อ้างจาก `TECH-STACK.md`
-- [ ] ปิด open question เรื่องแผนส่งต่อให้ผู้รับเหมาภายนอกดูแลระบบในอนาคต (กระทบว่า Node.js+Express ที่ยืนยันไว้ยังเหมาะสมหรือควรเปลี่ยนไปทาง Laravel/.NET Core ที่ตลาดผู้รับเหมาไทยคุ้นเคยกว่า) (FEAT-PLATFORM-01) — อ้างจาก `TECH-STACK.md` หัวข้อ 4.1 Decision Rationale
+- [x] Sync `HIGH-LEVEL-ARCHITECTURE.md` หัวข้อ 6 (Component Breakdown) ให้ระบุเทคโนโลยีจริงตาม `TECH-STACK.md` (แถว Web App/Frontend และ API Server/Backend) (FEAT-PLATFORM-01) — sync เสร็จแล้ว (2026-09-22) ครบทุกแถวใน Component Breakdown
+- [x] ยืนยัน Database engine, Auth/Identity provider, Hosting/Infrastructure เจาะจง, Monitoring/Logging ผ่าน `tech-stack-builder` รอบ 2 (FEAT-PLATFORM-02, FEAT-PLATFORM-03) — ยืนยันครบแล้ว (2026-09-21): Firebase Firestore, Firebase Authentication, Firebase Hosting/Cloud Run + Cloud Functions, Cloud Logging/Cloud Monitoring ดู `TECH-STACK.md` หัวข้อ 3
+- [x] ปิด open question เรื่องแผนส่งต่อให้ผู้รับเหมาภายนอกดูแลระบบในอนาคต (กระทบว่า Node.js+Express ที่ยืนยันไว้ยังเหมาะสมหรือควรเปลี่ยนไปทาง Laravel/.NET Core ที่ตลาดผู้รับเหมาไทยคุ้นเคยกว่า) (FEAT-PLATFORM-01) — ปิดแล้ว (2026-09-21): ทีม IT เดิมดูแลต่อเนื่อง ไม่มีแผนส่งต่อผู้รับเหมาภายนอก ยืนยัน Node.js + Express (หรือ Fastify) ต่อ ดู `TECH-STACK.md` หัวข้อ 4.1
 - [ ] สัมภาษณ์ `tech-stack-builder` เพิ่มเติม: Compliance/ความปลอดภัยเจาะจง (encryption at rest, retention period) (FEAT-PLATFORM-02, FEAT-PLATFORM-03) — `TECH-STACK.md` หมวด 4 ของ Interview Summary ระบุ "ยังไม่สัมภาษณ์รายละเอียดเจาะจง"
-- [ ] สัมภาษณ์ `tech-stack-builder` เพิ่มเติม: Timeline/deadline ของโครงการ (cross-cutting/project-level ไม่มี Feature ID เฉพาะ) — `TECH-STACK.md` หมวด 8 ของ Interview Summary ระบุ "ยังไม่สัมภาษณ์"
-- [ ] สัมภาษณ์ `tech-stack-builder` เพิ่มเติม: วิสัยทัศน์ระยะยาว (multi-tenancy) แล้วปรับขอบเขต Multi-tenancy ใน `DATA-MODEL.md` ตามผลที่ได้ (FEAT-PLATFORM-02, FEAT-PLATFORM-03) — `TECH-STACK.md` หมวด 9 ("ยังไม่สัมภาษณ์รายละเอียด multi-tenancy") + `DATA-MODEL.md` หัวข้อ 3 Cross-cutting concerns ("Multi-tenancy: ไม่อยู่ใน scope ของ Build Plan รอบนี้")
+- [x] สัมภาษณ์ `tech-stack-builder` เพิ่มเติม: Timeline/deadline ของโครงการ (cross-cutting/project-level ไม่มี Feature ID เฉพาะ) — สัมภาษณ์เสร็จแล้ว (2026-09-21) ดู deadline ที่บันทึกไว้ในย่อหน้าเปิดของไฟล์นี้ และ `TECH-STACK.md` หัวข้อ 1 ข้อ 8
+- [x] สัมภาษณ์ `tech-stack-builder` เพิ่มเติม: วิสัยทัศน์ระยะยาว (multi-tenancy) แล้วปรับขอบเขต Multi-tenancy ใน `DATA-MODEL.md` ตามผลที่ได้ (FEAT-PLATFORM-02, FEAT-PLATFORM-03) — สัมภาษณ์เสร็จแล้ว (2026-09-21): ยืนยัน single-tenant เท่านั้น ไม่มีแผนขยาย และ sync เข้า `DATA-MODEL.md` หัวข้อ 3 Cross-cutting concerns แล้ว (2026-09-22)
 
 ## Phase 8 — Hardening ก่อนใช้งานจริง
 
