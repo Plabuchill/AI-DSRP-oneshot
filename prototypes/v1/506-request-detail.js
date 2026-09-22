@@ -10,11 +10,29 @@ import {
   doc,
   onSnapshot,
   updateDoc,
-  deleteDoc
+  deleteDoc,
+  collection,
+  query,
+  where,
+  getDocs
 } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore.js";
 import { httpsCallable } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-functions.js";
-import { db, functions } from "./firebase-init.js";
+import { db, functions, auth } from "./firebase-init.js";
 import { getCurrentUserProfile, getRoleCategory } from "./current-user.js";
+
+// ทดสอบจริง (2026-09-22) พบว่า `profile` ที่ resolve ตอน init() บางครั้งได้ id/name ว่าง
+// แม้ auth.currentUser จะ login อยู่จริง (เข้าใจว่าเป็น timing/race condition ตอน Firebase Auth
+// restore session — ยังไม่ทราบกลไกแน่ชัด) เพื่อไม่ให้เขียน approverId/approverName เป็นค่าว่าง/null
+// ทับข้อมูลจริง ฟังก์ชันนี้ดึงโปรไฟล์ "สดใหม่" ตรงๆ จาก Firestore โดยไม่พึ่ง cache ของ
+// current-user.js เรียกใช้เฉพาะตอนจะเขียนข้อมูลสำคัญ (ตอนกดยืนยัน/ไม่ยืนยัน) เท่านั้น
+async function fetchFreshProfile() {
+  const user = auth.currentUser;
+  if (!user) return null;
+  const snap = await getDocs(query(collection(db, "users"), where("email", "==", user.email)));
+  if (snap.empty) return { id: "", name: user.email || "" };
+  const userDoc = snap.docs[0];
+  return { id: userDoc.id, name: userDoc.data().name };
+}
 
 const STATUS_BADGE = {
   "รอพิจารณา": "badge-warning",
@@ -109,7 +127,11 @@ async function init() {
     confirmBtn.disabled = true;
     rejectBtn.disabled = true;
     try {
-      const currentUser = profile || { id: "", name: "" };
+      let currentUser = profile;
+      if (!currentUser || !currentUser.id || !currentUser.name) {
+        currentUser = await fetchFreshProfile();
+      }
+      currentUser = currentUser || { id: "", name: "" };
       await updateDoc(doc(db, "506Requests", id), {
         status: newStatus,
         approverId: currentUser.id,

@@ -26,7 +26,15 @@ function currentPageName() {
 
 onAuthStateChanged(auth, async function (user) {
   if (!user) {
-    window.location.href = "login.html";
+    // ป้องกัน false-negative ชั่วคราว — ทดสอบจริง (2026-09-22) พบว่าบางหน้า (เช่น
+    // new-506-request.html) onAuthStateChanged ยิง callback แรกด้วย user=null ทั้งที่ login
+    // อยู่จริง (เข้าใจว่าเป็น timing ตอน Firebase Auth restore session จาก persistence ยังไม่
+    // ทราบกลไกแน่ชัด) เช็คซ้ำสั้นๆ ผ่าน auth.currentUser ก่อนเด้งไป login จริง แทนที่จะเชื่อ
+    // callback แรกทันที
+    await new Promise(function (resolve) { setTimeout(resolve, 300); });
+    if (!auth.currentUser) {
+      window.location.href = "login.html";
+    }
     return;
   }
 
