@@ -2,13 +2,15 @@
 
 เอกสารนี้เป็น**conceptual data model เท่านั้น** — ยังไม่ผูกกับ database engine, ภาษาโปรแกรม หรือ framework ใดๆ (ยังไม่มีการยืนยันเทคโนโลยีมาในรอบนี้) ตามโครงจาก skill `data-contract-builder` (`references/data-contract-templates.md`)
 
-ขอบเขต: ครอบคลุมทั้ง 8 โมดูลของระบบตาม [[../../01-requirements/01-spec/FEATURE-LIST|FEATURE-LIST.md]] — **Case Intake** (`FEAT-INTAKE-*`, เขียนไว้ก่อนหน้ารอบนี้ ไม่แก้เนื้อหาเดิม ยกเว้น 2 จุดที่ระบุไว้ชัดเจน: เพิ่ม `community_id`/`cluster_id` ใน `CASE` และเปลี่ยน `INVESTIGATION_TEAM` เป็น `TEAM` + `team_type`), **Dashboard** (`FEAT-DASH-*`), **Case Analysis** (`FEAT-ANALYSIS-*`), **Control Plan** (`FEAT-CONTROL-*`), **Field Tracking** (`FEAT-TRACK-*`), **ASM Coordination** (`FEAT-ASM-*`), **Reports** (`FEAT-REPORT-*`), **Alerts** (`FEAT-ALERT-*`) — อ้างอิง mock data จริงใน `prototypes/v1/*.js` ของแต่ละโมดูลเป็นฐาน — feature ที่ยังเป็น backlog ออกแบบ schema ให้พอ "รองรับได้" แต่ไม่ลงรายละเอียดการเชื่อมต่อ 3rd-party API จริง
+ขอบเขต: ครอบคลุมทั้ง 8 โมดูลของระบบตาม [[../../01-requirements/01-spec/FEATURE-LIST|FEATURE-LIST.md]] — **Case Intake** (`FEAT-INTAKE-*`, เขียนไว้ก่อนหน้ารอบนี้ ไม่แก้เนื้อหาเดิม ยกเว้น 2 จุดที่ระบุไว้ชัดเจน: เพิ่ม `community_id`/`cluster_id` ใน `CASE` และเปลี่ยน `INVESTIGATION_TEAM` เป็น `TEAM` + `team_type` — และปรับ `CASE`/`CASE_OCR_SNAPSHOT` ให้ตรงกับ OCR Review ในโค้ดจริงเมื่อ 2026-10-24 ดูหมายเหตุ sync ใน 1.1), **Dashboard** (`FEAT-DASH-*`), **Case Analysis** (`FEAT-ANALYSIS-*`), **Control Plan** (`FEAT-CONTROL-*`), **Field Tracking** (`FEAT-TRACK-*`), **ASM Coordination** (`FEAT-ASM-*`), **Reports** (`FEAT-REPORT-*`), **Alerts** (`FEAT-ALERT-*`) — อ้างอิง mock data จริงใน `prototypes/v1/*.js` ของแต่ละโมดูลเป็นฐาน — feature ที่ยังเป็น backlog ออกแบบ schema ให้พอ "รองรับได้" แต่ไม่ลงรายละเอียดการเชื่อมต่อ 3rd-party API จริง
 
 ## 1. ER Diagram
 
 ### 1.1 Case Intake (`FEAT-INTAKE-*`)
 
 > เพิ่มเข้ามาในรอบนี้ (ดูหมายเหตุด้านล่างไดอะแกรม): field `community_id`/`cluster_id` ใน `CASE`, และเปลี่ยนชื่อ `INVESTIGATION_TEAM` เป็น `TEAM` (เพิ่ม `team_type`) — ไม่มีการแก้ไขอื่นใดต่อเนื้อหา Case Intake เดิม
+>
+> **Sync กับโค้ดจริง (2026-10-24, หน้า Case Intake → OCR Review)**: `CASE` เพิ่ม `national_id` (sensitive/PDPA), `address_at_onset` (ที่อยู่ขณะป่วยช่องเดียว), `disease_code` (รหัสโรคตามรายการทางการ รง.506), `latitude`/`longitude` (พิกัดเป็นตัวเลขจริง) — `lab_result` ถูกถอดออกจากตาราง Review/ฟิลด์ที่ผู้ใช้แก้ได้ (คงไว้ใน `CASE` เป็น field ภายในที่ไม่แสดงใน UI รอบนี้) — `CASE_OCR_SNAPSHOT` ปรับให้ตรงกัน (ถอด `lab_result`, เพิ่ม `national_id`/`address_at_onset`/`disease_code`/`latitude`/`longitude`) — ข้อมูลเคส Case Intake ยังเป็น in-memory ในหน้าเว็บ ไม่ได้ persist/seed ลง Database จริง (conceptual เท่านั้น)
 
 ```mermaid
 erDiagram
@@ -24,7 +26,9 @@ erDiagram
   CASE {
     string case_id PK
     string patient_name
+    string national_id "sensitive PDPA"
     string hn
+    string address_at_onset
     string house_no
     string village_no
     string village
@@ -32,10 +36,13 @@ erDiagram
     string district
     string province
     date onset_date
-    string lab_result
+    string disease_code "official 506 code list"
+    string lab_result "hidden in UI"
     enum status
     enum geo_accuracy
     boolean geo_adjusted
+    number latitude
+    number longitude
     string map_position
     string responsible_team FK
     string community_id FK
@@ -46,13 +53,17 @@ erDiagram
     string snapshot_id PK
     string case_id FK
     string patient_name
+    string national_id "sensitive PDPA"
     string hn
+    string address_at_onset
     string house_no
     string village_no
     string village
     string subdistrict
     date onset_date
-    string lab_result
+    string disease_code "OCR-guessed"
+    number latitude
+    number longitude
     date captured_at
   }
   CASE_ATTACHMENT {
@@ -333,27 +344,32 @@ erDiagram
 
 ### `CASE` — เคสผู้ป่วยที่รายงานเข้าระบบ (ข้อมูลปัจจุบัน/effective)
 
-รองรับ Feature: `FEAT-INTAKE-01`, `FEAT-INTAKE-02`, `FEAT-INTAKE-03`, `FEAT-INTAKE-04`, `FEAT-INTAKE-07` (backlog — geo field), `FEAT-INTAKE-09` (backlog — unlock, ยังไม่รองรับในรอบนี้), `FEAT-DASH-*` (ผ่าน `community_id` — เพิ่มใหม่), `FEAT-ANALYSIS-01` (ผ่าน `cluster_id` — เพิ่มใหม่), `FEAT-CONTROL-01`/`02` (ผ่าน `CONTROL_LOCATION.case_id`)
+รองรับ Feature: `FEAT-INTAKE-01`, `FEAT-INTAKE-02`, `FEAT-INTAKE-03`, `FEAT-INTAKE-04`, `FEAT-INTAKE-05` (OCR ดึงค่าเริ่มต้นของ `national_id`/`address_at_onset`/`disease_code`/พิกัด), `FEAT-INTAKE-07` (backlog — geo field), `FEAT-INTAKE-09` (backlog — unlock, ยังไม่รองรับในรอบนี้), `FEAT-INTAKE-10` (AI Consistency Check — ส่งเฉพาะ field ที่ไม่ sensitive), `FEAT-INTAKE-11` (AI ช่วยจัดประเภทโรค — ผ่าน `disease_code`), `FEAT-DASH-*` (ผ่าน `community_id` — เพิ่มใหม่), `FEAT-ANALYSIS-01` (ผ่าน `cluster_id` — เพิ่มใหม่), `FEAT-CONTROL-01`/`02` (ผ่าน `CONTROL_LOCATION.case_id`)
 
-**Collection**: `cases`
+**Collection**: `cases` — **สถานะ: conceptual ยังไม่ seed/ยังไม่มี Database จริงสำหรับเคส Case Intake** (หน้า OCR Review เก็บเคสใน memory ของหน้าเว็บ ไม่ persist ข้ามการ reload) คอลัมน์ "Native Type (Firestore)" ด้านล่างจึงเป็นการ map ตามกฎ conceptual→Firestore เท่านั้น ไม่ใช่โครงที่ใช้งานจริงแล้ว — ชื่อ field คงเป็น snake_case ตาม convention ของ entity ที่ยังไม่ seed (ชื่อ field ในโค้ด prototype เป็น camelCase เช่น `patientName`/`nationalId`/`diseaseId` — ต้องตัดสินใจ naming อีกครั้งตอน seed จริง)
 
 | Attribute | Conceptual Type | Native Type (Firestore) | จำเป็นต้องมี | คำอธิบาย |
 |---|---|---|---|---|
 | case_id | string (PK) | `string` | ใช่ | รหัสอ้างอิงเคสหลัก ไม่ซ้ำกันในระบบ |
-| patient_name | string | `string` | ใช่ | ชื่อ-สกุลผู้ป่วย — แก้ไขได้ก่อนยืนยัน |
-| hn | string | `string` | ใช่ | Hospital Number — แก้ไขได้ก่อนยืนยัน |
-| house_no | string | `string` | ใช่ | บ้านเลขที่ — แก้ไขได้ก่อนยืนยัน |
-| village_no | string | `string` | ใช่ | หมู่ที่ — แก้ไขได้ก่อนยืนยัน |
-| village | string | `string` | ใช่ | ชื่อหมู่บ้าน — แก้ไขได้ก่อนยืนยัน |
-| subdistrict | string | `string` | ใช่ | ตำบล — แก้ไขได้ก่อนยืนยัน, การแก้ไขค่านี้ trigger auto-route `responsible_team` (ดู `SUBDISTRICT_ROUTING_RULE`) |
-| district | string | `string` | ใช่ | อำเภอ — **ไม่อยู่ในรายการฟิลด์ที่แก้ไขได้ผ่าน OCR Review ในรอบนี้** (ตรงกับ `saveEdit()` ของ prototype ปัจจุบันที่ไม่รวม `district`) |
-| province | string | `string` | ใช่ | จังหวัด — เช่นเดียวกับ `district`, ไม่อยู่ในรายการฟิลด์ที่แก้ไขได้รอบนี้ |
+| patient_name | string | `string` | ใช่ | ชื่อ-สกุลผู้ป่วย — แก้ไขได้ก่อนยืนยัน (ต้องไม่ว่างจึงยืนยันได้) |
+| national_id | string (13 หลักตัวเลข) | `string` | ใช่ (ต้องครบ 13 หลักจึงยืนยันได้) | **เพิ่มใหม่ — เลขประจำตัวประชาชน ข้อมูล sensitive (PDPA)** — เก็บเป็น string เพื่อรักษา leading zero, แสดงผลจัดรูปแบบ `X-XXXX-XXXXX-XX-X` — แก้ไขได้ก่อนยืนยัน — UI ตรวจ checksum หลักที่ 13 เป็นคำเตือนแบบ advisory เท่านั้น **ไม่บล็อกการบันทึก/ยืนยัน** — **ห้ามส่งให้ AI assist** (`FEAT-INTAKE-10`/`11`) — ต้องจำกัดสิทธิ์การเข้าถึง/พิจารณา masking ก่อนใช้งานจริง (ดูหัวข้อ 3 Cross-cutting) |
+| hn | string | `string` | ไม่บังคับ | Hospital Number — OCR ยังดึงได้และเก็บใน model แต่ **ไม่แสดง/ไม่ใช่ field ที่ต้องกรอกใน OCR Review รอบนี้** (เดิมเป็น "ใช่" — ลดเป็นไม่บังคับให้ตรงกับเงื่อนไขยืนยันเคสในโค้ดจริง) |
+| address_at_onset | string | `string` | ใช่ | **เพิ่มใหม่ — ที่อยู่ขณะป่วยเป็นข้อความเดียว (free text)** เช่น "45 หมู่ 3 บ้านเป็ดใหม่ ต.บ้านเป็ด อ.เมือง จ.ขอนแก่น" — แก้ไขได้ก่อนยืนยัน — ระบบหาตำบลจากข้อความนี้เพื่อกำหนด `subdistrict` และ auto-route `responsible_team` (ดู `SUBDISTRICT_ROUTING_RULE`) |
+| house_no | string | `string` | ไม่บังคับ | บ้านเลขที่ — ส่วนประกอบของที่อยู่แบบแยก field จากเคสเดิม/ตัว parser ของ OCR (เดิมเป็น "ใช่" และแก้ไขแยกได้) — **รอบนี้ไม่ใช่ field ที่ผู้ใช้แก้แยกใน OCR Review แล้ว** ที่อยู่ที่ผู้ใช้เห็น/แก้คือ `address_at_onset` |
+| village_no | string | `string` | ไม่บังคับ | หมู่ที่ — สถานะเดียวกับ `house_no` |
+| village | string | `string` | ไม่บังคับ | ชื่อหมู่บ้าน — สถานะเดียวกับ `house_no` |
+| subdistrict | string | `string` | ไม่บังคับ (derive จาก `address_at_onset`) | ตำบล — ระบบหาจากข้อความ `address_at_onset` (ตำบลที่ระบบรู้จักก่อน ไม่เจอลองจับ "ต."/"ตำบล <ชื่อ>") — การเปลี่ยนค่านี้ trigger auto-route `responsible_team` (ดู `SUBDISTRICT_ROUTING_RULE`) — ผู้ใช้ไม่แก้ field นี้ตรงๆ แล้ว แก้ผ่านที่อยู่ |
+| district | string | `string` | ไม่บังคับ | อำเภอ — **ไม่อยู่ในรายการฟิลด์ที่แก้ไขได้ผ่าน OCR Review ในรอบนี้** (เดิมเป็น "ใช่" — ลดเป็นไม่บังคับเพราะเงื่อนไขยืนยันเคสในโค้ดจริงไม่ตรวจ field นี้แล้ว) |
+| province | string | `string` | ไม่บังคับ | จังหวัด — เช่นเดียวกับ `district` |
 | onset_date | date | `Timestamp` | ใช่ | วันที่เริ่มป่วยตามที่รายงาน — แก้ไขได้ก่อนยืนยัน |
-| lab_result | string | `string` | ใช่ | ผลตรวจทางห้องปฏิบัติการ/คลินิก — แก้ไขได้ก่อนยืนยัน |
+| disease_code | string (รหัสโรค 2 หลัก) | `string` | ใช่ (ต้องเลือกก่อนจึงยืนยันได้) | **เพิ่มใหม่ — โรคตามรหัสทางการ รง.506** (เช่น `66` = ไข้เด็งกี่ (Dengue fever)) — ผู้ใช้เลือกจาก dropdown ได้เสมอ — ระบบเดาจากข้อความ OCR/ผลตรวจให้ก่อน (UI flag ว่ามาจาก OCR ให้ตรวจสอบ) — **ไม่ใช่ FK ไป `DISEASE`/collection `506Types`**: ค่าอ้างอิงรายการรหัสโรค รง.506 แบบ static (01…87, 99) ที่ฝังใน UI รอบนี้ ไม่ได้ดึงจาก Database (ใน `506Types` จริงมีเฉพาะ `66`/`67`/`68` ซึ่ง `67`/`68` ไม่ใช่รหัสทางการ) — การจัดแนว (reconcile) รายการนี้กับ `DISEASE` เป็นเรื่องที่ต้องตัดสินใจภายหลัง |
+| lab_result | string (nullable) | `string` (nullable) | ไม่บังคับ | ผลตรวจทางห้องปฏิบัติการ/คลินิก — **ถอดออกจากตาราง OCR Review แล้ว: ไม่แสดงใน UI รอบนี้ และไม่ใช่ field ที่ผู้ใช้แก้ได้** (เดิมเป็น "ใช่" และแก้ไขได้) — ข้อความผลตรวจจาก OCR ยังถูก parser ภายในใช้เดา `disease_code` อยู่ จึงยังคงเป็น field ภายในของเอนทิตี |
 | status | enum(รอตรวจสอบ, ยืนยันแล้ว) | `string` | ใช่ | สถานะ human-in-the-loop — เปลี่ยนได้ทางเดียวจาก "รอตรวจสอบ" → "ยืนยันแล้ว" เท่านั้นในรอบนี้ (ไม่มี state สำหรับ unlock แก้ไขซ้ำ ตาม `FEAT-INTAKE-09` ที่ยังเป็น backlog) |
-| geo_accuracy | enum(high, low) | `string` | ใช่ | ระดับความแม่นยำของพิกัดที่ได้มา (mock ปัจจุบันสุ่มค่า, ของจริงจะมาจาก Geocoding API ตาม `FEAT-INTAKE-07`) |
-| geo_adjusted | boolean | `boolean` | ใช่ | ปรับพิกัดด้วยมือแล้วหรือยัง — มีผลเฉพาะกรณี `geo_accuracy = low` เป็น fallback ตามที่ ROADMAP.md ระบุ |
-| map_position | string (conceptual) | `string` | ใช่ | ตำแหน่งสำหรับวาดหมุดบน Spot Map — เป็นค่าจำลองสำหรับ layout ในรอบนี้ ไม่ใช่พิกัดภูมิศาสตร์จริง (lat/long) จนกว่า `FEAT-INTAKE-07` จะเชื่อมต่อจริง |
+| geo_accuracy | enum(high, low) | `string` | ใช่ | ระดับความแม่นยำของพิกัดที่ได้มา — เคสที่ OCR อ่านพิกัดได้ตั้งเป็น `high`, ไม่มีพิกัดตั้งเป็น `low` (เคสตัวอย่างเดิมเป็นค่า mock; การคำนวณจริงจาก Geocoding API ตาม `FEAT-INTAKE-07` ยังเป็น backlog) |
+| geo_adjusted | boolean | `boolean` | ใช่ | ปรับพิกัดด้วยมือแล้วหรือยัง — ตั้งเป็น true เมื่อผู้ใช้บันทึกพิกัดเองผ่านช่อง "ละติจูด, ลองจิจูด" และ "เลิกทำ" คืนค่าพิกัดเดิมได้ |
+| latitude | number (nullable) | `number` (nullable) | ไม่บังคับ (null = ยังไม่มีพิกัด) | **เพิ่มใหม่ในเอกสาร (ตรงกับโค้ดจริง) — ละติจูด** — UI กรอก/แสดงพิกัดเป็น**ช่องเดียวรูปแบบ "lat, lng"** (เช่น `19.8963, 99.8280`) แล้วแยกเก็บเป็น `latitude`/`longitude` — ค่าที่รูปแบบผิดหรืออยู่นอกประเทศไทย (ละติจูด 5.5–21, ลองจิจูด 97–106) จะแจ้งเตือนและไม่บันทึก |
+| longitude | number (nullable) | `number` (nullable) | ไม่บังคับ (null = ยังไม่มีพิกัด) | **ลองจิจูด** — คู่กับ `latitude` ข้างต้น |
+| map_position | string (conceptual) | `string` | ใช่ | ตำแหน่งสำหรับวาดหมุดบน Spot Map — ค่าคำนวณ (derived) สำหรับ layout จาก `latitude`/`longitude` (normalize ตามกรอบประเทศไทยคร่าวๆ) ไม่ใช่พิกัดภูมิศาสตร์จริง — เคสตัวอย่างเดิมยังเป็นค่า mock ที่ผกผันกลับเป็นพิกัดโดยประมาณ |
 | responsible_team | reference → `TEAM` | `string` (document ID → collection `teams`) | ใช่ | ทีมสอบสวนโรคที่รับผิดชอบเคสนี้ ณ ปัจจุบัน — auto-reassign ได้ตอนแก้ `subdistrict` (entity เปลี่ยนชื่อจาก `INVESTIGATION_TEAM` เป็น `TEAM` ในรอบนี้ — ดู Entity Dictionary ของ `TEAM` ด้านล่าง) |
 | community_id | reference → `COMMUNITY` (nullable) | `string` (document ID → collection `communities`, nullable) | ไม่บังคับ (null = ยังไม่ได้ผูกชุมชน) | **เพิ่มใหม่ในรอบนี้** — ชุมชนที่เคสนี้เกิดขึ้น คู่กับ field string เดิม (subdistrict/district/village/house_no) เพื่อให้ Dashboard (`FEAT-DASH-*`) join ได้จริงแทนพึ่ง string match — ไม่ลบ field string เดิม |
 | cluster_id | reference → `CASE_CLUSTER` (nullable) | `string` (document ID → collection `caseClusters`, nullable) | ไม่บังคับ (null = ยังไม่ถูกจัดกลุ่ม) | **เพิ่มใหม่ในรอบนี้** — กลุ่มเคสที่ AI เสนอและอาจยืนยันแล้ว (`FEAT-ANALYSIS-01`) — เคสหนึ่งอยู่ในกลุ่มได้อย่างมาก 1 กลุ่ม ณ เวลาหนึ่ง |
@@ -361,9 +377,13 @@ erDiagram
 
 **Business rule เพิ่มเติม**: แก้ไขข้อมูลได้เฉพาะเคสที่ `status = รอตรวจสอบ` เท่านั้น (ตรงกับ `startEdit()` ใน prototype ที่ปฏิเสธแถวที่ `confirmed`) — เคสที่ยืนยันแล้วต้องรอ `FEAT-INTAKE-09` (unlock flow, ยังไม่ทำ) ก่อนจะแก้ไขซ้ำได้
 
+**เงื่อนไขก่อนยืนยันเคส (ตรงกับโค้ดจริง 2026-10-24)**: ต้องมี `patient_name`, `national_id` (ครบ 13 หลัก), `address_at_onset`, `onset_date`, `disease_code` ครบทั้ง 5 ช่อง — พิกัด (`latitude`/`longitude`) ไม่บังคับก่อนยืนยัน
+
+**พฤติกรรมของ OCR Review ที่มีผลต่อข้อมูล (สถานะรอบนี้)**: (1) OCR ทำงานฝั่ง client ในเบราว์เซอร์ (OCR engine ฟรี — ไม่ผ่านบริการฝั่งเซิร์ฟเวอร์ ไฟล์ไม่ออกนอกเครื่องผู้ใช้) อ่านลายมือไทยได้ไม่แม่น จึงต้องมีเจ้าหน้าที่ตรวจเสมอ (human-in-the-loop) (2) ถ้า OCR อ่านช่องหลักได้น้อยกว่า 2 ช่อง (`patient_name`/`national_id`/`address_at_onset`/`onset_date`) ระบบเปิดโหมดแก้ไขให้กรอกเอง (3) หน้า Review มีแผง "ภาพเอกสารต้นฉบับ" ให้เทียบ — เป็นการ preview ไฟล์ฝั่ง client เท่านั้น **ยังไม่ได้เก็บไฟล์ลงที่จัดเก็บใด** (ตรงกับ `FEAT-INTAKE-06` ที่ยังเป็น backlog) (4) ข้อมูลเคสทั้งหมดยังอยู่ใน memory ของหน้าเว็บ ไม่ persist
+
 ### `CASE_OCR_SNAPSHOT` — ค่าที่ OCR ดึงได้ตอนแรก (immutable audit baseline)
 
-รองรับ Feature: `FEAT-INTAKE-02` (ฐานสำหรับ diff ตอน human-in-the-loop), `FEAT-INTAKE-05` (backlog — วัดความแม่นยำ OCR จริงในอนาคต)
+รองรับ Feature: `FEAT-INTAKE-02` (ฐานสำหรับ diff ตอน human-in-the-loop), `FEAT-INTAKE-05` (วัดความแม่นยำ OCR — ปัจจุบัน OCR ทำงานฝั่ง client ใน UI; ระเบียน snapshot จริงยังเป็น backlog)
 
 **Collection**: `caseOcrSnapshots`
 
@@ -371,17 +391,21 @@ erDiagram
 |---|---|---|---|---|
 | snapshot_id | string (PK) | `string` | ใช่ | รหัสอ้างอิง snapshot |
 | case_id | reference → `CASE` (unique) | `string` (document ID → collection `cases`) | ใช่ | เคสที่ snapshot นี้เป็นของ — 1:1 กับ CASE |
-| patient_name | string | `string` | ใช่ | ค่าดั้งเดิมจาก OCR (ก่อนแก้ไขใดๆ) |
-| hn | string | `string` | ใช่ | ค่าดั้งเดิมจาก OCR |
-| house_no | string | `string` | ใช่ | ค่าดั้งเดิมจาก OCR |
-| village_no | string | `string` | ใช่ | ค่าดั้งเดิมจาก OCR |
-| village | string | `string` | ใช่ | ค่าดั้งเดิมจาก OCR |
-| subdistrict | string | `string` | ใช่ | ค่าดั้งเดิมจาก OCR |
-| onset_date | date | `Timestamp` | ใช่ | ค่าดั้งเดิมจาก OCR |
-| lab_result | string | `string` | ใช่ | ค่าดั้งเดิมจาก OCR |
+| patient_name | string | `string` | ไม่บังคับ (null/ว่างได้ถ้า OCR อ่านไม่ได้) | ค่าดั้งเดิมจาก OCR (ก่อนแก้ไขใดๆ) |
+| national_id | string (nullable) | `string` (nullable) | ไม่บังคับ | **เพิ่มใหม่** — เลขประจำตัวประชาชนที่ OCR อ่านได้ตอนแรก — **ข้อมูล sensitive (PDPA)** ระดับเดียวกับ `CASE.national_id` (ค่าที่ OCR อ่านผิด/ไม่ครบ 13 หลักก็เก็บตามที่อ่านได้) |
+| hn | string | `string` | ไม่บังคับ | ค่าดั้งเดิมจาก OCR |
+| address_at_onset | string (nullable) | `string` (nullable) | ไม่บังคับ | **เพิ่มใหม่** — ที่อยู่ขณะป่วยช่องเดียวที่ OCR อ่านได้ตอนแรก (ไม่ใช่ข้อมูลที่ประกอบจาก `house_no`/`village_no`/`village`/`subdistrict` ที่ผู้ใช้แก้ภายหลัง) |
+| house_no | string | `string` | ไม่บังคับ | ค่าดั้งเดิมจาก OCR parser (ส่วนประกอบที่อยู่แบบแยก field — คงไว้ตาม `CASE.house_no`) |
+| village_no | string | `string` | ไม่บังคับ | ค่าดั้งเดิมจาก OCR parser |
+| village | string | `string` | ไม่บังคับ | ค่าดั้งเดิมจาก OCR parser |
+| subdistrict | string | `string` | ไม่บังคับ | ค่าดั้งเดิมจาก OCR (หรือที่ระบบหาจากข้อความที่อยู่ตอนแรก) |
+| onset_date | date | `Timestamp` | ไม่บังคับ | ค่าดั้งเดิมจาก OCR |
+| disease_code | string (nullable) | `string` (nullable) | ไม่บังคับ (null = เดาโรคจากข้อความไม่ได้) | **เพิ่มใหม่** — รหัสโรค รง.506 ที่ระบบ**เดา**จากข้อความ OCR ตอนแรก (ไม่ใช่ค่าที่ผู้ใช้เลือก) — อ้างอิงรายการรหัสโรคเดียวกับ `CASE.disease_code` (ไม่ผูก `DISEASE`/`506Types`) |
+| latitude | number (nullable) | `number` (nullable) | ไม่บังคับ (null = OCR ไม่พบพิกัด) | **เพิ่มใหม่** — ละติจูดที่ OCR อ่านได้ตอนแรก |
+| longitude | number (nullable) | `number` (nullable) | ไม่บังคับ (null = OCR ไม่พบพิกัด) | **เพิ่มใหม่** — ลองจิจูดที่ OCR อ่านได้ตอนแรก (คู่กับ `latitude`) |
 | captured_at | date | `Timestamp` | ใช่ | เวลาที่ OCR extraction เสร็จ (ครั้งเดียว, immutable) |
 
-**หมายเหตุ**: mirror เฉพาะ field ที่แก้ไขได้ใน `CASE` เท่านั้น (ไม่รวม `district`/`province` เพราะไม่อยู่ในรายการฟิลด์ที่แก้ไขได้ — จึงไม่จำเป็นต้องเก็บค่าดั้งเดิมไว้ diff) — เป็น audit trail แบบ "ต้นฉบับคู่กับค่าที่แก้แล้ว" ตามที่ยืนยันในแผน ไม่ใช่ full version history ทุกครั้งที่แก้
+**หมายเหตุ**: mirror field ที่เกี่ยวกับ OCR Review ใน `CASE` (ไม่รวม `district`/`province` เพราะไม่อยู่ในรายการฟิลด์ที่แก้ไขได้ — จึงไม่จำเป็นต้องเก็บค่าดั้งเดิมไว้ diff; **ถอด `lab_result` ออกแล้ว** ให้ตรงกับที่ถอดจาก OCR Review) — เป็น audit trail แบบ "ต้นฉบับคู่กับค่าที่แก้แล้ว" ตามที่ยืนยันในแผน ไม่ใช่ full version history ทุกครั้งที่แก้ — **ขอบเขตรอบนี้**: OCR ทำงานฝั่ง client และข้อมูลเคสยังอยู่ใน memory ของหน้าเว็บ (โค้ดปัจจุบันยังไม่ได้สร้าง snapshot เป็นระเบียนแยก) — entity นี้จึงเป็น conceptual ยังไม่ seed จริง (ชื่อ field คง snake_case ตาม convention ของ entity ที่ยังไม่ seed) — "จำเป็นต้องมี" ของ field ข้อมูลเปลี่ยนเป็นไม่บังคับ เพราะ OCR อ่านลายมือได้ไม่แม่นและอาจได้ค่าว่าง
 
 ### `CASE_ATTACHMENT` — ไฟล์ต้นฉบับที่แนบมากับเคส
 
@@ -792,4 +816,5 @@ erDiagram
 
 - **Audit trail**: เก็บค่า OCR ดั้งเดิมคู่กับค่าปัจจุบันแบบ "ต้นฉบับ 1 ครั้ง vs ค่าที่แก้ไขแล้ว" ผ่าน `CASE_OCR_SNAPSHOT` (immutable, capture ครั้งเดียวตอน OCR เสร็จ) — ไม่ใช่ full version history ทุกครั้งที่แก้ไข ตามที่ยืนยันใน Ambiguity Protocol สำหรับ Case Intake — ในโมดูลใหม่ 7 โมดูล audit trail ที่ยืนยันชัดเจนมีเฉพาะ `CASE_CLUSTER.confirmed_at`/`APPROVAL_REQUEST` (เก็บเป็น log ทุกรอบผ่าน `APPROVAL_REQUEST_CASE` แทนการเขียนทับ draft เดิม) และ `REPORT_SEND_LOG` (audit ว่าส่งอะไรไปเมื่อไหร่) — entity อื่นที่เหลือ (เช่น `FIELD_PHOTO`, `ALERT`, `ASM_PHOTO_INTAKE`) เก็บแค่สถานะปัจจุบันตามที่ยืนยันในแผน ไม่มี version history เพิ่มเติม
 - **Soft delete policy**: Soft delete เสมอ ไม่มี hard delete operation ในเอกสารนี้ — `CASE`, `CASE_OCR_SNAPSHOT`, `CASE_ATTACHMENT`, `CASE_NOTIFICATION_LOG` (ข้อมูลที่ผูกกับ lifecycle ของเคสสุขภาพโดยตรง) ต้องมี field แบบ `deleted_at` เพื่อทำเครื่องหมายว่าถูกลบแทนการลบถาวร entity lookup (`TEAM`, `SUBDISTRICT_ROUTING_RULE`, `DISEASE`, `SERVICE_ZONE`, `COMMUNITY`) เป็น master data ที่มี lifecycle ของตัวเอง ไม่ได้ระบุ soft delete ไว้ในตารางด้านบนเพื่อไม่ scope creep — ถือเป็น assumption ที่ระบุไว้ท้ายผลลัพธ์ **entity ใหม่ทั้ง 7 โมดูลไม่ได้ถูกระบุ soft delete policy อย่างชัดเจนใน Build Plan รอบนี้** จึงไม่เพิ่ม `deleted_at` ให้เองเพื่อไม่ scope creep — ถือเป็น gap ที่ flag ไว้ท้ายผลลัพธ์ (ต้องยืนยันเพิ่มเติมภายหลังโดยเฉพาะ entity ที่เกี่ยวกับข้อมูลสุขภาพ เช่น `CASE_CLUSTER`, `INVESTIGATION_REPORT`, `CONTROL_LOCATION`)
+- **Sensitive data (PDPA) — `national_id`** (เพิ่ม 2026-10-24 ตามโค้ดจริง): `CASE.national_id` และ `CASE_OCR_SNAPSHOT.national_id` เป็นข้อมูลส่วนบุคคลอ่อนไหว — ห้ามส่งให้ AI assist (`FEAT-INTAKE-10`/`11`) ทุกกรณี (โค้ดจริงตัดออกจาก payload ที่ส่ง AI แล้ว) — การจำกัดสิทธิ์อ่าน/masking ตอนแสดงผล/นโยบายเก็บรักษา ยังไม่ได้ออกแบบในรอบนี้ (เป็นประเด็นเปิดที่ต้องตัดสินใจก่อน persist ข้อมูลจริง)
 - **Multi-tenancy**: **ยืนยันแล้ว (2026-09-21)**: single-tenant เท่านั้น (เทศบาลเดียวตามขอบเขตปัจจุบัน) — ผู้ใช้ยืนยันชัดเจนว่าไม่มีแผนขยายให้เทศบาล/หน่วยงานอื่นใช้ร่วมในอนาคต ไม่ต้องออกแบบ entity ให้รองรับ tenant/organization แยก (ดู `TECH-STACK.md` หัวข้อ 1 ข้อ 9) — ครอบคลุมทั้ง Case Intake เดิมและ 7 โมดูลใหม่

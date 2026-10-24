@@ -9,7 +9,7 @@
 - **ระดับความละเอียด Sequence Flow**: ทุก flow เป็น **coarse** (decision point หลัก + ผลสำเร็จ/ไม่สำเร็จ 2 ทาง) ยกเว้น **4 flow เสี่ยงสูง** ที่ทำแบบ **step-by-step ละเอียด** (มี validation/error/retry branch เต็ม): OCR Review & Confirm Flow, Case Clustering Confirm & Report Flow, Control Plan Approval Flow, Alert Assign & Close Flow
 - **State/Status Diagram**: ส่วนใหญ่ไม่ทำแยก (ALERT/TEAM มี 3 สถานะ, CASE/CASE_CLUSTER มี 2 สถานะ — ใช้ `Note` ใน sequence diagram แทน) **ยกเว้น `APPROVAL_REQUEST`** ที่ข้าม threshold ≥4 สถานะจริงหลังเพิ่ม `rejected` (draft/sent/approved/rejected) — มี `stateDiagram-v2` แยกใน Flow 8 (ดูด้านล่าง)
 - **Error & Exception Handling** ครอบเฉพาะ error ที่กระทบ business-critical/ข้อมูลสุขภาพ: **เคสซ้ำ, cluster ผิดพื้นที่, แจ้งเตือนผิดทีม, อนุมัติซ้ำซ้อน, ปิด alert โดยไม่มี note** — flow ที่ไม่มี error ประเภทนี้เกี่ยวข้องจะระบุไว้ชัดเจนว่า "ไม่มี" แทนการยัดตารางที่ไม่จำเป็น ไม่ครอบ error ทั่วไป (network fail, timeout ฯลฯ)
-- **Tech Stack**: [[./TECH-STACK|TECH-STACK.md]] ยืนยัน Frontend (Vanilla JS + Node.js/EJS partials), Backend/API runtime (Node.js + Express/Fastify), **OCR/Document AI vendor (Claude Vision — Anthropic, ยืนยัน 2026-09-08)**, **Geocoding vendor (Google Maps Geocoding API, ยืนยัน 2026-09-08)** — จึง participant ที่เกี่ยวข้องใน Flow 1/Flow 2 ด้านล่างอ้างชื่อ vendor จริงแล้ว ส่วน component อื่นที่ flow อื่นในไฟล์นี้เรียกใช้ (Case Clustering, AI Vision QC) **ยังไม่ยืนยัน vendor จริง** จึง participant ยังเป็นชื่อ capability-level ตาม `HIGH-LEVEL-ARCHITECTURE.md` หัวข้อ 6 เหมือนเดิม (mixed state ตามปกติของเอกสารนี้)
+- **Tech Stack**: [[./TECH-STACK|TECH-STACK.md]] ยืนยัน Frontend (Vanilla JS + Node.js/EJS partials), Backend/API runtime (Node.js + Express/Fastify), **OCR/Document AI vendor (Claude Vision — Anthropic, ยืนยัน 2026-09-08)**, **Geocoding vendor (Google Maps Geocoding API, ยืนยัน 2026-09-08)** — **อัปเดต 2026-10-24**: runtime ปัจจุบันของ Flow 1 ใช้ OCR ฝั่งเบราว์เซอร์ (Tesseract.js ภาษา tha+eng + pdf.js) แทน Claude Vision ตามที่ผู้ใช้ยืนยัน (ฟรี ไม่ต้องอัปเกรด Firebase Blaze) — Claude Vision (Cloud Function `extractCaseReport`) ยังอยู่ในโค้ดแต่ UI ไม่เรียก จึงระบุเป็น backlog ใน Flow 1 ส่วน Geocoding (Flow 2) ยังไม่เชื่อมจริง (พิกัดกรอกด้วยมือ) — ส่วน component อื่นที่ flow อื่นในไฟล์นี้เรียกใช้ (Case Clustering, AI Vision QC) **ยังไม่ยืนยัน vendor จริง** จึง participant ยังเป็นชื่อ capability-level ตาม `HIGH-LEVEL-ARCHITECTURE.md` หัวข้อ 6 เหมือนเดิม (mixed state ตามปกติของเอกสารนี้)
 - **แกนอ้างอิงหลัก**: Dashboard ยึด [[../01-prototypes/USER-JOURNEY-outbreak-dashboard|USER-JOURNEY-outbreak-dashboard.md]] เป็นแกน — อีก 7 โมดูลยึด operation ใน `API-SPEC.md` เป็นแกน
 - Diagram ส่วนใหญ่ใช้ `sequenceDiagram` (Mermaid) — มี `stateDiagram-v2` เพิ่ม 1 diagram เฉพาะ Flow 8 (`APPROVAL_REQUEST`) ตามเหตุผลข้างต้น
 
@@ -17,17 +17,19 @@
 
 # โมดูล: Case Intake (`FEAT-INTAKE-*`)
 
-## Flow 1 — OCR Review & Confirm Flow (step-by-step ละเอียด) — `FEAT-INTAKE-01`/`02`/`03`/`05`
+## Flow 1 — OCR Review & Confirm Flow (step-by-step ละเอียด) — `FEAT-INTAKE-01`/`02`/`03`/`05`/`10`/`11`
+
+> **สถานะการ sync กับโค้ด (2026-10-24)**: Flow นี้ปรับให้ตรงกับพฤติกรรมจริงของ `prototypes/v1` — **OCR ทำฝั่ง client ในเบราว์เซอร์ ไม่มีการเรียก API Server/Cloud Function/Claude Vision ใน runtime ปัจจุบัน** และข้อมูลเคสทั้งหมดเป็น in-memory ของหน้า (ไม่ persist) เส้นทาง Claude Vision + การบันทึกลง entity ถาวร (`CASE` ฯลฯ) คงไว้เป็น **backlog** ตามที่ระบุใน diagram
 
 ### 1. Flow Overview
 
 | หัวข้อ | รายละเอียด |
 |---|---|
-| Trigger | เจ้าหน้าที่ รพ./เทศบาล อัปโหลดไฟล์รายงานเคส (PDF/JPEG) |
-| Actor หลัก | เจ้าหน้าที่ รพ./เทศบาล (อัปโหลด/ตรวจสอบ/ยืนยัน), ระบบ (OCR extraction, auto-route ทีม) |
-| Precondition | ไฟล์รายงานเคสอยู่ในรูปแบบ PDF/JPEG ที่ระบบรองรับ |
-| Postcondition | `CASE.status = ยืนยันแล้ว`, มี `CASE_NOTIFICATION_LOG` ใหม่, `responsible_team` ถูกกำหนดแล้ว |
-| Reference | Operation 1, 2, 3, 5, 6 (`API-SPEC.md` หัวข้อ 2) · Entity `CASE`/`CASE_OCR_SNAPSHOT`/`CASE_ATTACHMENT`/`CASE_NOTIFICATION_LOG`/`TEAM`/`SUBDISTRICT_ROUTING_RULE` (`DATA-MODEL.md`) · Component "บริการ OCR/Document AI (Claude Vision)", "Web App (Frontend)", "API Server" (`HIGH-LEVEL-ARCHITECTURE.md` หัวข้อ 6) |
+| Trigger | เจ้าหน้าที่ รพ./เทศบาล อัปโหลดไฟล์รายงานเคส (PDF/JPEG/PNG ขนาดไม่เกิน 7MB) |
+| Actor หลัก | เจ้าหน้าที่ รพ./เทศบาล (อัปโหลด/ตรวจสอบ/แก้ไข/ยืนยัน), ระบบ (OCR ฝั่งเบราว์เซอร์, แยกช่องข้อมูล, กำหนดทีมรับผิดชอบเริ่มต้น) |
+| Precondition | ไฟล์เป็น PDF/JPEG/PNG ขนาดไม่เกิน 7MB; ครั้งแรกต้องมีอินเทอร์เน็ตเพื่อโหลดโมดูล OCR ภาษาไทย/อังกฤษ (ผู้ใช้ต้องเปิดหน้าด้วยบัญชีที่ผ่าน auth-guard ตามปกติ) |
+| Postcondition | เคสในตาราง OCR Review เปลี่ยนเป็น `ยืนยันแล้ว`, มีรายการแจ้งเตือนทีมรับผิดชอบเพิ่ม 1 รายการ, หมุดเคสปรากฏบน Spot Map — **ทั้งหมดอยู่ใน memory ของหน้า ไม่ persist (หายเมื่อ reload)** |
+| Reference | Journey/operation ระดับแนวคิด: Operation 1, 2, 3, 5, 6 (`API-SPEC.md` หัวข้อ 2 — ยังไม่ถูกเรียกจริงใน runtime ปัจจุบัน) · Entity เป้าหมายเมื่อ persist: `CASE`/`CASE_OCR_SNAPSHOT`/`CASE_ATTACHMENT`/`CASE_NOTIFICATION_LOG`/`TEAM`/`SUBDISTRICT_ROUTING_RULE` (`DATA-MODEL.md`) · Component: "OCR ฝั่งเบราว์เซอร์ (Tesseract.js + pdf.js)" (runtime ปัจจุบัน), "บริการ OCR/Document AI (Claude Vision)" (backlog), "Web App (Case Intake)", "AI ช่วยตรวจสอบเคส (Claude)" (FEAT-INTAKE-10) |
 
 ### 2. Sequence Flow
 
@@ -35,85 +37,132 @@
 sequenceDiagram
   participant จนท as เจ้าหน้าที่ รพ./เทศบาล
   participant UI as Web App (Case Intake)
-  participant API as API Server
-  participant OCR as Claude Vision (Anthropic)
-  participant Data as CASE / CASE_OCR_SNAPSHOT / CASE_ATTACHMENT / CASE_NOTIFICATION_LOG
+  participant OCR as OCR ฝั่งเบราว์เซอร์ (Tesseract.js tha+eng + pdf.js)
+  participant Parse as ตัวแยกช่องข้อมูล (parser)
+  participant Mem as ข้อมูลเคส/แจ้งเตือน (in-memory ของหน้า)
+  participant AI as AI ช่วยตรวจสอบ (Claude — FEAT-INTAKE-10)
 
-  จนท->>UI: อัปโหลดไฟล์รายงานเคส (PDF/JPEG)
-  UI->>API: ส่งไฟล์ + file_name/file_type
-  API->>API: ตรวจสอบประเภท/ขนาดไฟล์
-  alt ไฟล์ถูกต้อง (PDF/JPEG ตามที่รองรับ)
-    API->>OCR: ส่งไฟล์ให้ดึงข้อมูล
-    OCR-->>API: ชื่อ/HN/ที่อยู่/ตำบล/วันป่วย/ผลตรวจ
-    API->>API: หาทีมรับผิดชอบเริ่มต้นจาก SUBDISTRICT_ROUTING_RULE (ตามตำบลที่ OCR ดึงได้)
-    API->>Data: สร้าง CASE (status=รอตรวจสอบ) + CASE_OCR_SNAPSHOT + CASE_ATTACHMENT
-    Data-->>API: บันทึกสำเร็จ
-    API-->>UI: แสดงแถวในตาราง OCR Review (รอตรวจสอบ)
-  else ไฟล์ไม่ถูกต้อง/ประเภทไม่รองรับ
-    API-->>UI: แจ้งข้อผิดพลาด ปฏิเสธการอัปโหลด
+  Note over OCR,Mem: runtime ปัจจุบัน: ไฟล์ไม่ออกนอกเครื่อง ไม่มี API Server/Cloud Function ในขั้น OCR และไม่ persist ข้อมูลเคส
+
+  จนท->>UI: อัปโหลดไฟล์รายงานเคส (เลือกไฟล์/ลากวาง)
+  UI->>UI: ตรวจชนิดไฟล์ (PDF/JPEG/PNG) และขนาด (ไม่เกิน 7MB)
+  alt ชนิดไฟล์ไม่รองรับ
+    UI-->>จนท: "รองรับเฉพาะไฟล์ PDF, JPEG, PNG เท่านั้น" (หยุด)
+  else ไฟล์ใหญ่เกิน 7MB
+    UI-->>จนท: "ไฟล์ใหญ่เกินไป (จำกัดไม่เกิน 7MB)" (หยุด)
+  else ไฟล์ถูกต้อง
+    UI->>OCR: ส่งไฟล์ให้อ่านข้อความ (ปุ่มเลือกไฟล์ถูกปิดระหว่างประมวลผล)
+    OCR-->>UI: ข้อความสถานะ (โหลดโมดูลภาษาไทย / แปลงหน้า PDF / % การอ่าน)
+    opt ไฟล์เป็น PDF
+      OCR->>OCR: แปลงหน้า PDF เป็นภาพก่อน (สูงสุด 3 หน้าแรก)
+    end
+    alt โหลดโมดูล OCR ไม่ได้ หรืออ่านข้อความไม่ได้เลย หรือเกิดข้อผิดพลาดอื่น
+      OCR-->>UI: error พร้อมสาเหตุ
+      UI-->>จนท: "แปลงเอกสารไม่สำเร็จ: ตามด้วยสาเหตุ" (ไม่สร้างแถวใหม่ ปุ่มกลับมาใช้งานได้)
+    else อ่านข้อความได้
+      OCR-->>Parse: ข้อความดิบจากทุกหน้า
+      Parse->>Parse: จับคู่ label -> ช่องข้อมูล (ชื่อ/เลขบัตร/HN/ที่อยู่/วันที่เริ่มป่วย/ผลตรวจ/พิกัดถ้ามี)
+      Parse->>Parse: ข้ามบรรทัด "ชื่อบิดา/มารดา/ผู้ปกครอง/ผู้รายงาน" (ไม่นับเป็นชื่อผู้ป่วย)
+      Parse->>Parse: ทิ้งค่าที่อ่านเป็นขยะ (ตัวอักษรน้อย/สัญลักษณ์ปนเกินครึ่ง) ให้เป็นค่าว่าง
+      Parse-->>UI: ช่องข้อมูลที่แยกได้
+      UI->>UI: เดาโรคจากข้อความ OCR (รหัสรง.506/คำสำคัญ) เป็นค่าเริ่มต้นถ้าเจอ
+      UI->>UI: หาตำบลจากที่อยู่ -> กำหนดทีมรับผิดชอบเริ่มต้น (ตำบลไม่รู้จัก -> ทีม เขต 1 ไปก่อน)
+      UI->>Mem: เพิ่มเคส status=รอตรวจสอบ (มีพิกัดจากเอกสาร=แม่นยำสูง, ไม่มี=แม่นยำต่ำ) + เก็บ preview ไฟล์ต้นฉบับฝั่ง client
+      UI-->>จนท: แสดงแถวใหม่ในตาราง OCR Review + แผง "ภาพเอกสารต้นฉบับ" เหนือตาราง
+      opt อ่านช่องหลักได้ < 2 ช่อง (ชื่อ / เลขบัตร 13 หลัก / ที่อยู่ / วันที่เริ่มป่วย) = weak OCR
+        UI-->>จนท: ข้อความเตือน "ระบบอ่านข้อมูลจากเอกสารนี้ได้น้อยมาก (มักเป็นลายมือ) กรุณาดูภาพต้นฉบับแล้วกรอกข้อมูลในตารางเอง"
+        UI->>UI: เปิดโหมดแก้ไขแถวนั้นอัตโนมัติ
+      end
+    end
   end
 
-  Note over จนท,UI: เจ้าหน้าที่ตรวจสอบข้อมูลที่ OCR ดึงได้ทีละแถว (human-in-the-loop)
+  Note over จนท,UI: เจ้าหน้าที่เทียบค่าในตารางกับภาพต้นฉบับทีละแถว (human-in-the-loop) — OCR ฟรีอ่านตัวพิมพ์ได้ แต่อ่านลายมือไทย/ช่องติ๊กโรคไม่ได้
 
   opt เจ้าหน้าที่พบข้อมูลผิด ต้องแก้ไขก่อนยืนยัน
-    จนท->>UI: กด "แก้ไข" (เฉพาะแถว status=รอตรวจสอบ)
-    UI->>API: เปิดโหมดแก้ไข (case_id)
-    API->>API: ตรวจสอบ status ต้อง = รอตรวจสอบ
-    alt status = รอตรวจสอบ
-      UI-->>จนท: แสดง field แก้ไขได้ (ชื่อ-สกุล/HN/ที่อยู่/ตำบล/วันป่วย/ผลตรวจ — ไม่รวม district/province)
-      จนท->>UI: แก้ไขค่า แล้วกด "บันทึก"
-      UI->>API: ส่งค่าที่แก้ไข
-      alt ตำบลที่แก้ไขตรงกับ SUBDISTRICT_ROUTING_RULE ที่ระบบรู้จัก
-        API->>Data: อัปเดต CASE + reassign responsible_team ตามตำบลใหม่
-      else ตำบลไม่ตรงกับ rule ใดเลย
-        API->>Data: อัปเดต CASE โดยคงทีมรับผิดชอบเดิมไว้
-      end
-      Data-->>API: บันทึกสำเร็จ
-      API-->>UI: แสดงค่าที่แก้ไขแล้ว (ยังเป็น รอตรวจสอบ)
-    else status = ยืนยันแล้ว
-      API-->>UI: ปฏิเสธ ไม่อนุญาตให้แก้ไข (ต้องรอ flow unlock ในอนาคต — FEAT-INTAKE-09 ยังไม่รองรับในรอบนี้)
+    จนท->>UI: กด "แก้ไข" (ปุ่มมีเฉพาะแถวที่ยังไม่ยืนยัน แก้ได้ทีละ 1 แถว)
+    UI-->>จนท: ช่องแก้ไขได้: ชื่อผู้ป่วย / เลขประจำตัวประชาชน / ที่อยู่ขณะป่วย / วันที่เริ่มป่วย
+    จนท->>UI: แก้ไขค่า แล้วกด "บันทึก"
+    UI->>UI: หาตำบลจากที่อยู่ที่แก้
+    alt ตำบลตรงกับพื้นที่ที่ระบบรู้จัก
+      UI->>Mem: อัปเดตเคส + เปลี่ยนทีมรับผิดชอบตามตำบลใหม่
+    else ตำบลไม่ตรงพื้นที่ที่รู้จัก/ไม่พบตำบล
+      UI->>Mem: อัปเดตเคส คงทีมรับผิดชอบเดิมไว้ (ไม่มีข้อความเตือนว่าทีมไม่เปลี่ยน)
+    end
+    UI-->>จนท: แสดงค่าที่แก้แล้ว (ยังเป็น รอตรวจสอบ) — ปุ่ม "ยกเลิก" ออกจากโหมดแก้ไขโดยไม่เปลี่ยนค่า
+  end
+
+  opt เจ้าหน้าที่เลือก/แก้โรค (dropdown รหัสโรค รง.506 แบบ static)
+    จนท->>UI: เลือกโรคจากรายการ (เปลี่ยนค่าที่ระบบเดาไว้ได้เสมอ)
+    UI->>Mem: เก็บโรคที่เลือก (ล้างป้าย "เลือกจากข้อความในเอกสาร")
+  end
+
+  opt เจ้าหน้าที่ขอให้ AI ช่วยตรวจสอบ (advisory เท่านั้น)
+    จนท->>UI: กด "ให้ AI ช่วยตรวจสอบ"
+    UI->>AI: ส่งชื่อ/ที่อยู่/วันที่เริ่มป่วย/โรค/ผลตรวจ (ไม่ส่งเลขประจำตัวประชาชน และไม่ส่งไฟล์)
+    alt AI ตอบกลับ
+      AI-->>UI: ok หรือรายการจุดน่าสงสัย
+      UI-->>จนท: แสดงผลใต้แถว (ไม่แก้ข้อมูลอัตโนมัติ)
+    else เรียก AI ไม่สำเร็จ
+      UI-->>จนท: แสดงข้อความ error ใต้แถว (ไม่กระทบการยืนยัน)
     end
   end
 
   จนท->>UI: กด "ยืนยัน"
-  UI->>API: ยืนยันเคส (case_id)
-  API->>API: ตรวจสอบ status ต้อง = รอตรวจสอบ
-  alt status = รอตรวจสอบ
-    API->>Data: CASE.status -> ยืนยันแล้ว
-    API->>Data: สร้าง CASE_NOTIFICATION_LOG ใหม่ (team = responsible_team ปัจจุบัน, notified_at = now)
-    Data-->>API: บันทึกสำเร็จ
-    Note over API,Data: สถานะเปลี่ยน: รอตรวจสอบ -> ยืนยันแล้ว (ทางเดียว ไม่มี reopen ในรอบนี้)
-    API-->>UI: แสดงสถานะ "ยืนยันแล้ว" + รายการแจ้งเตือนใหม่ในประวัติ
-  else status = ยืนยันแล้วอยู่แล้ว
-    API-->>UI: ปฏิเสธ (ป้องกันยืนยันซ้ำ/สร้าง notification log ซ้ำ)
+  UI->>UI: ตรวจช่องจำเป็น: ชื่อผู้ป่วย, เลขประจำตัว 13 หลัก, ที่อยู่ขณะป่วย, วันที่เริ่มป่วย, โรค
+  alt ช่องจำเป็นขาด
+    UI-->>จนท: "ยังยืนยันไม่ได้ กรุณากรอก/เลือกให้ครบ: ตามด้วยรายการช่องที่ขาด" (สถานะคงเดิม)
+  else ครบ
+    UI->>Mem: เปลี่ยนสถานะ รอตรวจสอบ -> ยืนยันแล้ว
+    UI->>Mem: เพิ่มรายการแจ้งเตือนทีมรับผิดชอบปัจจุบัน (พร้อมเวลา)
+    Note over UI,Mem: ทางเดียว ไม่มี reopen/unlock ในรอบนี้ (FEAT-INTAKE-09 backlog) และปุ่มยืนยัน/แก้ไขไม่ปรากฏบนแถวที่ยืนยันแล้ว
+    UI-->>จนท: แสดง "ยืนยันแล้ว" + อัปเดต Notification Log และ Spot Map
   end
+
+  Note over UI,Mem: Backlog (ไม่ใช่เส้นทางหลักปัจจุบัน): ส่งไฟล์ให้ Claude Vision ผ่าน API Server/Cloud Function แทน OCR ฝั่งเบราว์เซอร์ + บันทึก CASE/CASE_OCR_SNAPSHOT/CASE_ATTACHMENT/CASE_NOTIFICATION_LOG แบบ persist + ตรวจ status ฝั่ง server ก่อนแก้ไข/ยืนยัน
 ```
 
 ### 3. Business Rule / Validation Logic
 
 | Rule | เงื่อนไข | ผลถ้าไม่ผ่าน | Feature ID |
 |---|---|---|---|
-| แก้ไขข้อมูลได้เฉพาะเคสที่ยังไม่ยืนยัน | `CASE.status = รอตรวจสอบ` | ปฏิเสธการแก้ไข | FEAT-INTAKE-02 |
-| `district`/`province` ไม่อยู่ในฟิลด์ที่แก้ไขได้ | เสมอ | ไม่มีช่องให้แก้ในรอบนี้ | FEAT-INTAKE-02 |
-| Auto-route ทีมรับผิดชอบตอนแก้ไขตำบล | ตำบลที่แก้ตรงกับ `SUBDISTRICT_ROUTING_RULE` | reassign `responsible_team`; ถ้าไม่ตรง คงทีมเดิม | FEAT-INTAKE-02, FEAT-INTAKE-03 |
-| ยืนยันเคสได้ครั้งเดียว | `CASE.status = รอตรวจสอบ` ก่อนยืนยัน | ปฏิเสธ ป้องกันยืนยันซ้ำ | FEAT-INTAKE-02 |
-| ยืนยันเคสสร้าง notification log ใหม่เสมอ | ทุกครั้งที่ยืนยันสำเร็จ | ส่งไปยัง `responsible_team` ปัจจุบัน | FEAT-INTAKE-03 |
+| ชนิดไฟล์ที่รับอัปโหลด | MIME เป็น PDF, JPEG หรือ PNG | แสดง "รองรับเฉพาะไฟล์ PDF, JPEG, PNG เท่านั้น" ไม่เริ่ม OCR | FEAT-INTAKE-01 |
+| ขนาดไฟล์สูงสุด | ไม่เกิน 7MB | แสดง "ไฟล์ใหญ่เกินไป (จำกัดไม่เกิน 7MB)" ไม่เริ่ม OCR | FEAT-INTAKE-01 |
+| PDF อ่านเฉพาะหน้าแรกๆ | PDF ถูกแปลงเป็นภาพ สูงสุด 3 หน้า | หน้าที่เกินไม่ถูกอ่าน | FEAT-INTAKE-05 |
+| ไฟล์ไม่ออกนอกเครื่อง | OCR ทำในเบราว์เซอร์ (ครั้งแรกต้องโหลดโมดูลภาษาไทย/อังกฤษจากอินเทอร์เน็ต) | ถ้าโหลดโมดูลไม่ได้ แสดง error ตามหัวข้อ 4 | FEAT-INTAKE-05 |
+| ค่าที่ OCR อ่านเป็นขยะถูกทิ้ง | ชื่อ/ที่อยู่ มีตัวอักษรน้อยเกินไป หรือสัญลักษณ์ปนเกินครึ่ง | ปล่อยเป็นค่าว่างให้เจ้าหน้าที่กรอกเอง (ดีกว่าเดาใส่) | FEAT-INTAKE-05 |
+| บรรทัดชื่อบิดา/มารดา/ผู้ปกครอง/ผู้รายงาน ไม่นับเป็นชื่อผู้ป่วย | บรรทัดที่มีคำเหล่านี้ | ไม่ดึงเป็นชื่อผู้ป่วย | FEAT-INTAKE-05 |
+| Weak OCR | อ่านช่องหลักได้ < 2 ช่อง จาก ชื่อ / เลขบัตร 13 หลัก / ที่อยู่ / วันที่เริ่มป่วย | แสดงข้อความเตือน + เปิดโหมดแก้ไขแถวนั้นอัตโนมัติ ให้กรอกเองจากแผง "ภาพเอกสารต้นฉบับ" | FEAT-INTAKE-02, FEAT-INTAKE-05 |
+| แก้ไขข้อมูลได้เฉพาะเคสที่ยังไม่ยืนยัน (และทีละ 1 แถว) | status = รอตรวจสอบ | แถวที่ยืนยันแล้วไม่มีปุ่ม "แก้ไข"/"ยืนยัน" | FEAT-INTAKE-02 |
+| ช่องที่แก้ไขได้ในโหมดแก้ไข | ชื่อผู้ป่วย, เลขประจำตัวประชาชน, ที่อยู่ขณะป่วย, วันที่เริ่มป่วย (โรคเลือกผ่าน dropdown, พิกัดแก้ผ่านช่องพิกัด — ดู Flow 2) | ไม่มีช่องแยก district/province (รวมอยู่ในที่อยู่ช่องเดียว) | FEAT-INTAKE-02 |
+| เลขประจำตัวประชาชน | ต้องครบ 13 หลักจึงยืนยันได้ ส่วน checksum ไม่ผ่านเป็นเพียงป้ายเตือน "เลขอาจอ่านผิด" (advisory ไม่บล็อก) | ไม่ครบ 13 หลัก -> ยืนยันไม่ได้ / checksum ไม่ผ่าน -> เตือนแต่ยืนยันได้ | FEAT-INTAKE-02 |
+| โรคต้องเลือกก่อนยืนยัน | เลือกจาก dropdown รหัสโรค รง.506 (รายการ static) — ระบบเดาจากข้อความ OCR ให้เป็นค่าเริ่มต้นได้ พร้อมป้าย "เลือกจากข้อความในเอกสาร โปรดตรวจสอบ" | ไม่เลือกโรค -> ยืนยันไม่ได้ | FEAT-INTAKE-02, FEAT-INTAKE-11 |
+| Auto-route ทีมรับผิดชอบตามตำบลในที่อยู่ | หาตำบลจากข้อความที่อยู่ (ตำบลที่ระบบรู้จักก่อน ไม่เจอลองจับ "ต./ตำบล ชื่อ") แล้วเทียบกับพื้นที่ที่ระบบรู้จัก | ตรงพื้นที่ที่รู้จัก -> กำหนด/เปลี่ยนทีมตามตำบล / ไม่ตรง -> ตอนสร้างเคสใหม่เข้า "ทีมสอบสวนโรค เขต 1" เป็นค่าเริ่มต้น, ตอนแก้ไขคงทีมเดิม | FEAT-INTAKE-02, FEAT-INTAKE-03 |
+| ช่องจำเป็นก่อนยืนยัน (confirm validation) | ชื่อผู้ป่วย, เลขประจำตัวประชาชน 13 หลัก, ที่อยู่ขณะป่วย, วันที่เริ่มป่วย, โรค — พิกัดไม่บังคับ | alert "ยังยืนยันไม่ได้ กรุณากรอก/เลือกให้ครบ: ..." ระบุช่องที่ขาด สถานะคงเดิม | FEAT-INTAKE-02 |
+| ยืนยันเคสได้ครั้งเดียว | แถวที่ยืนยันแล้วถูกข้าม (ไม่ทำซ้ำ) | ไม่สร้างรายการแจ้งเตือนซ้ำ | FEAT-INTAKE-02 |
+| ยืนยันเคสสร้างรายการแจ้งเตือนใหม่ | ทุกครั้งที่ยืนยันสำเร็จ | ส่งไปยังทีมรับผิดชอบปัจจุบันของเคส (บันทึกใน Notification Log ของหน้า) | FEAT-INTAKE-03 |
+| AI ช่วยตรวจสอบเป็น advisory | ปุ่มระดับแถว ส่งชื่อ/ที่อยู่/วันที่เริ่มป่วย/โรค/ผลตรวจ — **ไม่ส่งเลขประจำตัวประชาชนและไม่ส่งไฟล์** | ไม่แก้ข้อมูล/ไม่ยืนยันแทนเจ้าหน้าที่; ผล error แสดงใต้แถว | FEAT-INTAKE-10 |
+| การเปลี่ยนสถานะเคสทำได้จากปุ่ม "ยืนยัน" ของคนเท่านั้น | AI/OCR ห้ามเปลี่ยนสถานะเอง | human-in-the-loop เสมอ | FEAT-INTAKE-02, FEAT-INTAKE-10, FEAT-INTAKE-11 |
+| ข้อมูลเคสยังไม่ persist | ข้อมูลอยู่ใน memory ของหน้า | หายเมื่อ reload (backlog: บันทึกลง entity ถาวร) | FEAT-INTAKE-02, FEAT-INTAKE-05 |
 
 ### 4. Error & Exception Handling
 
 | กรณี | จุดที่เกิด (อ้างจาก step ใน diagram) | การจัดการ | ผลกระทบต่อผู้ใช้/ข้อมูล |
 |---|---|---|---|
-| เคสซ้ำ | ตอนอัปโหลดไฟล์/สร้าง `CASE` ใหม่ | **ไม่มี dedup rule ที่ยืนยันในแผนรอบนี้** — ระบบไม่ตรวจสอบไฟล์/HN ซ้ำอัตโนมัติ (เช่น อัปโหลดไฟล์เดิมซ้ำสองครั้ง) — ถือเป็น **gap** ที่ต้องยืนยันเพิ่มก่อน implement จริง | อาจเกิดเคสซ้ำในระบบ ต้องตรวจด้วยมือ |
-| แจ้งเตือนผิดทีม | ตอนยืนยันเคส (สร้าง `CASE_NOTIFICATION_LOG`) | ระบบส่งแจ้งเตือนไปยัง `responsible_team` ตามที่ auto-route ไว้ล่าสุดเสมอ — ถ้าตำบลที่ป้อนผิดและไม่ตรง `SUBDISTRICT_ROUTING_RULE` ระบบจะคงทีมเดิมไว้แบบเงียบ (silent no-op) โดยไม่มีการเตือนผู้ใช้ชัดเจนว่าทีมไม่ถูก reassign — ถือเป็น **risk ที่ flag ไว้**: UI ควรแสดงข้อความยืนยันชัดเจนตอนแก้ไขว่าทีมเปลี่ยน/ไม่เปลี่ยน | เคสอาจถูกแจ้งเตือนไปยังทีมที่ไม่ตรงพื้นที่จริง |
+| เคสซ้ำ | ตอนอัปโหลดไฟล์/เพิ่มเคสใหม่ในตาราง | **ไม่มี dedup rule ที่ยืนยันในแผนรอบนี้** — ระบบไม่ตรวจสอบไฟล์/HN/เลขประจำตัวประชาชนซ้ำอัตโนมัติ (อัปโหลดไฟล์เดิมซ้ำจะได้แถวใหม่ทุกครั้ง) — ถือเป็น **gap** ที่ต้องยืนยันเพิ่มก่อน implement จริง | อาจเกิดเคสซ้ำในระบบ ต้องตรวจด้วยมือ |
+| แจ้งเตือนผิดทีม | ตอนสร้างเคสใหม่จาก OCR (กำหนดทีมเริ่มต้น), ตอนบันทึกการแก้ไขที่อยู่, ตอนยืนยันเคส (เพิ่มรายการแจ้งเตือน) | ระบบส่งแจ้งเตือนไปยังทีมรับผิดชอบปัจจุบันของเคสเสมอ — ตอนสร้างเคสถ้าตำบลไม่ตรงพื้นที่ที่ระบบรู้จัก (หรืออ่านที่อยู่ไม่ได้) เคสจะเข้า "ทีมสอบสวนโรค เขต 1" เป็นค่าเริ่มต้นแบบเงียบ และตอนแก้ไขถ้าตำบลไม่ตรงจะคงทีมเดิมแบบเงียบ (silent no-op) โดยไม่มีการเตือนผู้ใช้ว่าทีมไม่ถูก reassign — ถือเป็น **risk ที่ flag ไว้**: UI ควรแสดงข้อความชัดเจนว่าทีมเปลี่ยน/ไม่เปลี่ยน/เป็นค่าเริ่มต้น | เคสอาจถูกแจ้งเตือนไปยังทีมที่ไม่ตรงพื้นที่จริง |
+| OCR แปลงเอกสารไม่สำเร็จ | ขั้นอ่านข้อความด้วย OCR ฝั่งเบราว์เซอร์ | แสดง "แปลงเอกสารไม่สำเร็จ: ตามด้วยสาเหตุ" เช่น "โหลดโมดูล OCR ไม่สำเร็จ (ต้องมีอินเทอร์เน็ตครั้งแรก)" หรือ "อ่านข้อความจากเอกสารไม่ได้ กรุณาตรวจสอบว่าไฟล์ชัดเจน หรือกรอกข้อมูลด้วยมือแทน" — ไม่สร้างแถวใหม่ และปุ่มเลือกไฟล์กลับมาใช้งานได้ (ไม่มี retry อัตโนมัติ ผู้ใช้อัปโหลดใหม่เอง) | ไม่มีข้อมูลเข้าตาราง ไม่กระทบเคสเดิม |
+| OCR อ่านได้แต่ไม่ครบ/ผิด (ลายมือ, ช่องติ๊กโรค) | หลัง parser แยกช่องข้อมูล | อ่านลายมือไทยและช่องติ๊กโรคไม่ได้ (ทดสอบกับใบ รง.506 จริง) — ค่าขยะถูกทิ้งเป็นว่าง, weak OCR เปิดโหมดแก้ไขอัตโนมัติ, เลขบัตรที่ checksum ไม่ผ่านมีป้ายเตือน, ต้องเลือกโรคเองก่อนยืนยัน | ข้อมูลผิดที่ไม่ถูกจับได้อาจหลุดถึงขั้นยืนยันถ้าเจ้าหน้าที่ไม่เทียบกับภาพต้นฉบับ — จึงต้องเป็น human-in-the-loop เสมอ |
+| ยืนยันเคสที่ข้อมูลไม่ครบ | ตอนกด "ยืนยัน" | ปฏิเสธด้วย alert ระบุช่องที่ขาด (ดูหัวข้อ 3) | เคสคงสถานะ รอตรวจสอบ ไม่มีรายการแจ้งเตือนเกิดขึ้น |
+| AI ช่วยตรวจสอบล้มเหลว | ตอนกด "ให้ AI ช่วยตรวจสอบ" | แสดงข้อความ error ใต้แถว ไม่แก้ข้อมูล ไม่ block การยืนยัน (รายละเอียด retry/rate limit ของ Claude ไม่ได้ระบุมาใน context — คงเป็นเชิงแนวคิด) | เจ้าหน้าที่ตรวจเองต่อได้ |
 
 ### 5. Traceability
 
 | อ้างอิง | ID/ชื่อ |
 |---|---|
-| Feature | FEAT-INTAKE-01, FEAT-INTAKE-02, FEAT-INTAKE-03, FEAT-INTAKE-05 (backlog), FEAT-INTAKE-08 (backlog), FEAT-INTAKE-09 (backlog) |
-| Entity | `CASE`, `CASE_OCR_SNAPSHOT`, `CASE_ATTACHMENT`, `CASE_NOTIFICATION_LOG`, `TEAM`, `SUBDISTRICT_ROUTING_RULE` |
-| Operation | API-SPEC.md operation 1, 2, 3, 5, 6 |
-| Component | Web App (Case Intake), API Server, บริการ OCR/Document AI (Claude Vision), LINE OA (backlog) |
+| Feature | FEAT-INTAKE-01, FEAT-INTAKE-02, FEAT-INTAKE-03, FEAT-INTAKE-05 (runtime ปัจจุบัน = OCR ฝั่งเบราว์เซอร์ Tesseract.js, Claude Vision = backlog), FEAT-INTAKE-10 (AI ช่วยตรวจสอบ), FEAT-INTAKE-11 (เลือก/เดาประเภทโรค — ดู gap ด้านล่าง), FEAT-INTAKE-08 (backlog), FEAT-INTAKE-09 (backlog) |
+| Entity | `CASE`, `CASE_OCR_SNAPSHOT`, `CASE_ATTACHMENT`, `CASE_NOTIFICATION_LOG`, `TEAM`, `SUBDISTRICT_ROUTING_RULE` (เป็น entity เป้าหมายเมื่อ persist — runtime ปัจจุบันเป็น in-memory) |
+| Operation | API-SPEC.md operation 1, 2, 3, 5, 6 (ระดับแนวคิด ยังไม่ถูกเรียกจริง) |
+| Component | Web App (Case Intake), OCR ฝั่งเบราว์เซอร์ (Tesseract.js + pdf.js), AI ช่วยตรวจสอบเคส (Claude), API Server + บริการ OCR/Document AI (Claude Vision) (backlog), LINE OA (backlog) |
 
 ---
 
@@ -123,11 +172,11 @@ sequenceDiagram
 
 | หัวข้อ | รายละเอียด |
 |---|---|
-| Trigger | เจ้าหน้าที่เห็นเคสที่ `geo_accuracy = low` และต้องการปรับพิกัดด้วยมือ (fallback) |
+| Trigger | เจ้าหน้าที่เห็นเคสที่ไม่มีพิกัด/พิกัดแม่นยำต่ำ (หรือต้องการแก้พิกัด) และกด "ระบุพิกัด"/"แก้ไขพิกัด" ในแถวเคส (fallback ด้วยมือ) |
 | Actor หลัก | เจ้าหน้าที่ รพ./เทศบาล |
-| Precondition | เคสมี `geo_accuracy = low` |
-| Postcondition | `CASE.geo_adjusted` ถูกสลับค่า (toggle) |
-| Reference | Operation 4 (`API-SPEC.md`) · Entity `CASE` (`geo_accuracy`, `geo_adjusted`) · Component Web App (Case Intake), API Server, บริการ Geocoding (Google Maps Geocoding API) |
+| Precondition | มีเคสในตาราง OCR Review (ปุ่มพิกัดมีทุกแถว ไม่จำกัดเฉพาะ `geo_accuracy = low`) — เคสจาก OCR จะมีพิกัดก็ต่อเมื่อเอกสารมีค่า "ละติจูด, ลองจิจูด" ซึ่งฟอร์ม รง.506 มาตรฐานไม่มีช่องนี้ ส่วนใหญ่จึงเว้นว่าง |
+| Postcondition | ได้พิกัดช่องเดียวรูปแบบ "ละติจูด, ลองจิจูด" (ในกรอบประเทศไทย) และแถวถูกทำเครื่องหมาย "ปรับพิกัดด้วยมือแล้ว" หรือกลับเป็นค่าเดิมเมื่อกด "เลิกทำ" (in-memory ไม่ persist) |
+| Reference | Operation 4 (`API-SPEC.md` ระดับแนวคิด) · Entity `CASE` (`geo_accuracy`, `geo_adjusted`, พิกัด) · Component Web App (Case Intake), บริการ Geocoding (Google Maps Geocoding API — backlog `FEAT-INTAKE-07`) |
 
 ### 2. Sequence Flow
 
@@ -135,15 +184,26 @@ sequenceDiagram
 sequenceDiagram
   participant จนท as เจ้าหน้าที่
   participant UI as Web App (Case Intake)
-  participant API as API Server
+  participant Mem as ข้อมูลเคส (in-memory ของหน้า)
 
-  จนท->>UI: กด "ปรับพิกัดด้วยมือ" (case_id)
-  UI->>API: ปรับพิกัดด้วยมือ (case_id)
-  alt geo_accuracy = low
-    API->>API: สลับค่า geo_adjusted (toggle)
-    API-->>UI: แสดงสถานะ "ปรับพิกัดด้วยมือแล้ว" (หรือ "เลิกทำ")
-  else geo_accuracy = high
-    API-->>UI: ปุ่มนี้ไม่ปรากฏ/ไม่มีผล (ปรับได้เฉพาะพิกัดแม่นยำต่ำ)
+  จนท->>UI: กด "ระบุพิกัด" (ไม่มีพิกัด) หรือ "แก้ไขพิกัด" (มีพิกัดแล้ว)
+  UI-->>จนท: แสดงช่องพิกัดช่องเดียว "ละติจูด, ลองจิจูด" (เติมค่าเดิมให้ถ้ามี)
+  alt เจ้าหน้าที่กด "ยกเลิก"
+    UI-->>จนท: ปิดช่องกรอก ไม่เปลี่ยนข้อมูล
+  else เจ้าหน้าที่กด "บันทึกพิกัด"
+    UI->>UI: แยกค่าละติจูด/ลองจิจูดจากข้อความ และตรวจว่าอยู่ในกรอบประเทศไทย
+    alt รูปแบบผิดหรือนอกกรอบประเทศไทย
+      UI-->>จนท: เตือนให้กรอกเป็น "ละติจูด, ลองจิจูด" ช่องเดียว (ตัวอย่างและช่วงค่าที่ยอมรับ) ไม่บันทึก
+    else ถูกต้อง
+      UI->>Mem: เก็บพิกัด + คำนวณตำแหน่งหมุด + ตั้งสถานะ "ปรับพิกัดด้วยมือแล้ว"
+      UI-->>จนท: แสดงพิกัดใหม่ในแถว และอัปเดตหมุดบน Spot Map (เฉพาะเคสที่ยืนยันแล้ว)
+    end
+  end
+
+  opt เคยปรับพิกัดด้วยมือแล้ว
+    จนท->>UI: กด "เลิกทำ"
+    UI->>Mem: คืนพิกัด/ตำแหน่งหมุดเดิมก่อนปรับ และยกเลิกสถานะ "ปรับพิกัดด้วยมือแล้ว"
+    UI-->>จนท: แสดงพิกัดเดิม
   end
 ```
 
@@ -151,20 +211,25 @@ sequenceDiagram
 
 | Rule | เงื่อนไข | ผลถ้าไม่ผ่าน | Feature ID |
 |---|---|---|---|
-| ปรับพิกัดมีผลเฉพาะพิกัดแม่นยำต่ำ | `geo_accuracy = low` | ปุ่มไม่ทำงาน/ไม่ปรากฏเมื่อ `geo_accuracy = high` | FEAT-INTAKE-04 |
+| พิกัดกรอกเป็นช่องเดียว | รูปแบบ "ละติจูด, ลองจิจูด" เช่น `19.8963, 99.8280` | เตือนและไม่บันทึกพิกัด | FEAT-INTAKE-04 |
+| พิกัดต้องอยู่ในกรอบประเทศไทย | ละติจูด 5.5–21, ลองจิจูด 97–106 | เตือนและไม่บันทึกพิกัด | FEAT-INTAKE-04 |
+| ระบุ/แก้ไขพิกัดได้ทุกแถว (ปุ่มพิกัดแสดงทุกแถว รวมแถวที่ยืนยันแล้ว) | ไม่ผูกกับ `geo_accuracy` หรือสถานะเคส | — | FEAT-INTAKE-04 |
+| พิกัดไม่บังคับก่อนยืนยันเคส | ไม่อยู่ในรายการช่องจำเป็นของ Flow 1 | เคสยืนยันได้แม้ไม่มีพิกัด (หมุดจะอยู่ตำแหน่งกลางแผนที่จำลอง) | FEAT-INTAKE-04 |
+| "เลิกทำ" คืนค่าเดิม | เคยปรับด้วยมือแล้ว | คืนพิกัดเดิมที่บันทึกไว้ก่อนปรับครั้งแรก | FEAT-INTAKE-04 |
+| เคสจาก OCR | พิกัดจากเอกสาร (ถ้ามี) -> `geo_accuracy = high`, ไม่มี -> `low` | — | FEAT-INTAKE-04, FEAT-INTAKE-05 |
 
 ### 4. Error & Exception Handling
 
-ไม่มี error ระดับ business-critical เฉพาะสำหรับ flow นี้ตามขอบเขตที่ยืนยันใน Build Plan (ครอบเฉพาะ 5 ประเภทที่ระบุในหัวข้อ 0)
+ไม่มี error ระดับ business-critical เฉพาะสำหรับ flow นี้ตามขอบเขตที่ยืนยันใน Build Plan (ครอบเฉพาะ 5 ประเภทที่ระบุในหัวข้อ 0) — การเตือนรูปแบบพิกัดผิดสรุปไว้ในหัวข้อ 3
 
 ### 5. Traceability
 
 | อ้างอิง | ID/ชื่อ |
 |---|---|
-| Feature | FEAT-INTAKE-04, FEAT-INTAKE-07 (backlog) |
+| Feature | FEAT-INTAKE-04, FEAT-INTAKE-05, FEAT-INTAKE-07 (backlog) |
 | Entity | `CASE` |
-| Operation | API-SPEC.md operation 4 |
-| Component | Web App (Case Intake), API Server, บริการ Geocoding (Google Maps Geocoding API) |
+| Operation | API-SPEC.md operation 4 (ระดับแนวคิด ยังไม่ถูกเรียกจริง) |
+| Component | Web App (Case Intake), บริการ Geocoding (Google Maps Geocoding API — backlog) |
 
 ---
 
@@ -1118,7 +1183,9 @@ sequenceDiagram
 - **[Gap] เกณฑ์คำนวณระดับความเสี่ยงต่อเขต (ปกติ/เฝ้าระวัง/วิกฤต)** ยังไม่ระบุตัวเลขที่แน่นอนใน `DATA-MODEL.md`/`API-SPEC.md` — Flow 4 (Dashboard) จึงระบุแค่ "คำนวณจากจำนวนเคส/อัตราป่วยเทียบเกณฑ์" แบบ conceptual เท่านั้น
 - **[Gap] Case Intake ไม่มี dedup rule สำหรับเคสซ้ำ** (อัปโหลดไฟล์/HN ซ้ำ) — Flow 1 flag ไว้เป็น error case ที่ยังไม่มีการจัดการ
 - **[Gap] Case Analysis ไม่มี operation "ปฏิเสธ/แก้ไของค์ประกอบ cluster ที่ผิด"** — Flow 5 flag ไว้ว่า cluster ที่นักระบาดวิทยาเห็นว่าผิดพื้นที่จะค้างสถานะ `pending` ตลอดไปโดยไม่มีทางแก้ไขในระบบ
-- **[Gap] Case Intake — การกำหนด `responsible_team` เริ่มต้นตอนสร้างเคสใหม่เมื่อ OCR ดึงตำบลที่ไม่ตรง `SUBDISTRICT_ROUTING_RULE` ใดเลย** ไม่มีการระบุ behavior ชัดเจนใน `API-SPEC.md`/`DATA-MODEL.md` (มีแต่ตอนแก้ไข) — เอกสารนี้สันนิษฐานว่าใช้ lookup เดียวกันตอนสร้างเคส (Flow 1 step แรก) แต่ยังไม่ยืนยันว่าเกิดอะไรขึ้นถ้าไม่ตรง (ปล่อยว่าง/ต้องเลือกด้วยมือ) — ต้องยืนยันเพิ่มก่อน implement จริง
+- **[Gap] Case Intake — การกำหนด `responsible_team` เริ่มต้นตอนสร้างเคสใหม่เมื่อ OCR ดึงตำบลที่ไม่ตรง `SUBDISTRICT_ROUTING_RULE` ใดเลย** ไม่มีการระบุ behavior ชัดเจนใน `API-SPEC.md`/`DATA-MODEL.md` (มีแต่ตอนแก้ไข) — **โค้ด prototype ปัจจุบัน (2026-10-24) เลือกให้เข้า "ทีมสอบสวนโรค เขต 1" เป็นค่าเริ่มต้นแบบเงียบ** (Flow 1 ระบุตามนี้แล้ว) แต่ยังไม่มีการยืนยันเชิง business ว่าเขต 1 เป็นค่าเริ่มต้นที่ถูกต้อง หรือควรปล่อยว่าง/ให้เลือกด้วยมือแทน — ต้องยืนยันเพิ่มก่อน implement จริง
+- **[Gap] Case Intake — เอกสาร conceptual ต่างจากโค้ด/เอกสารอื่นหลัง sync Flow 1 (2026-10-24)**: (1) `DATA-MODEL.md` entity `CASE` ยังไม่มี field เลขประจำตัวประชาชน, รหัสโรค รง.506 (`disease_id`), ที่อยู่ช่องเดียว และพิกัดช่องเดียว (ยังมี `lab_result`/`hn` ซึ่งถูกถอด/ไม่แสดงในตาราง OCR Review แล้ว) (2) `FEATURE-LIST.md` แถว `FEAT-INTAKE-05` ยังระบุ "Cloud Function `extractCaseReport`, Claude Vision ผ่าน OpenRouter" ซึ่งไม่ตรงกับ runtime ปัจจุบัน (OCR ฝั่งเบราว์เซอร์) และไม่ตรงกับ `TECH-STACK.md` (Claude Vision — Anthropic) (3) `TECH-STACK.md` ยังไม่สะท้อน Tesseract.js ฝั่ง client — ต้อง sync ผ่าน skill ของเอกสารนั้นๆ (เอกสารนี้ห้ามแก้เอง)
+- **[Gap] FEAT-INTAKE-11 (AI ช่วยจัดประเภทโรค)** — ปุ่ม "ให้ AI ช่วยจัด" ไม่ปรากฏใน UI ตารางปัจจุบัน (dropdown โรคเป็นรายการ static + ระบบเดาจากข้อความ OCR ด้วย keyword/รหัส; เหลือเพียง listener/Cloud Function `suggestDiseaseType` ที่ไม่ถูกเรียก) — Flow 1 จึงอธิบายเฉพาะการเลือก/เดาโรค ไม่มี step เรียก AI จัดโรค ต้องยืนยันว่าจะคงปุ่มนี้กลับมาหรือถอด FEAT-INTAKE-11 ออก
 - **[Assumption] Field Tracking — ลำดับการเปลี่ยนสถานะทีมพ่น (`not_arrived` → `spraying` → `done`)** สันนิษฐานว่าเป็นลำดับทางเดียวทีละขั้น ไม่ข้าม/ย้อนกลับ ตามรูปแบบ one-way transition ที่ใช้ทั่วทั้งระบบ (`CASE`, `CASE_CLUSTER`, `ALERT`, `APPROVAL_REQUEST`) — ไม่ได้ระบุไว้ชัดเจนเป็นคำต่อคำใน `DATA-MODEL.md`
 
 ---

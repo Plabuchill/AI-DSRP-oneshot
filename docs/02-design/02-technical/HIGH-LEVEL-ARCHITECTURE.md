@@ -27,6 +27,7 @@ flowchart TB
 
   subgraph Frontend["Web App (ต่อยอดจาก prototypes/v1/)"]
     FE["8 โมดูล: Dashboard / Case Intake / Case Analysis /\nControl Plan / Field Tracking / ASM Coordination /\nReports / Alerts"]
+    OCRC["OCR ในเบราว์เซอร์ผู้ใช้ [ปัจจุบัน]\n(Tesseract.js tha+eng + pdf.js)\n(FEAT-INTAKE-05)"]
   end
 
   subgraph Backend["Backend / API (FEAT-PLATFORM-01)"]
@@ -36,7 +37,7 @@ flowchart TB
   end
 
   subgraph AI["AI / Extraction Services"]
-    OCR["OCR / Document AI\n(FEAT-INTAKE-05)"]
+    OCR["OCR ผ่านบริการเซิร์ฟเวอร์ (Claude Vision) [backlog]\n(FEAT-INTAKE-05)"]
     GEO["Geocoding API\n(FEAT-INTAKE-07)"]
     CLUSTER["Case Clustering\n(FEAT-ANALYSIS-04)"]
     VISION["AI Vision QC รูปภาคสนาม\n(FEAT-CONTROL-05)"]
@@ -55,8 +56,10 @@ flowchart TB
 
   FE <--> AUTH
   FE <--> API
+  FE --> OCRC
+  OCRC -. "ข้อมูลที่ดึงได้ (ไฟล์ไม่ออกนอกเครื่อง)" .-> FE
   API <--> DB
-  API --> OCR
+  API -. "backlog: เมื่ออัปเกรด Blaze" .-> OCR
   API --> GEO
   API --> CLUSTER
   API --> VISION
@@ -74,7 +77,7 @@ flowchart TB
 | **Users** | 6 บทบาทตาม role-based access | FEAT-PLATFORM-02 (Phase 7) |
 | **Frontend** | Web app ต่อยอดจาก 8 หน้า prototype ปัจจุบัน | FEAT-DASH, FEAT-INTAKE, FEAT-ANALYSIS, FEAT-CONTROL, FEAT-TRACK, FEAT-ASM, FEAT-REPORT, FEAT-ALERT |
 | **Backend/API** | API Server กลาง + Auth + Database | FEAT-PLATFORM-01/02/03 (Phase 7) |
-| **AI Services** | OCR/Document AI, Geocoding, Case Clustering, Vision QC | FEAT-INTAKE-05/07, FEAT-ANALYSIS-04, FEAT-CONTROL-05 (Phase 1-3) |
+| **AI Services** | OCR (ปัจจุบันทำในเบราว์เซอร์ผู้ใช้ — อยู่ใน Frontend ในไดอะแกรม; ฝั่งเซิร์ฟเวอร์ด้วย Claude Vision เป็น backlog), Geocoding, Case Clustering, Vision QC | FEAT-INTAKE-05/07, FEAT-ANALYSIS-04, FEAT-CONTROL-05 (Phase 1-3) |
 | **External** | Google Sheet/Drive (เก็บข้อมูล+ไฟล์ต้นฉบับ), LINE OA (แจ้งเตือน/รับรูป) | FEAT-INTAKE-06/08, FEAT-ASM-03/04 (Phase 1, 4) |
 
 ## 3. Data Flow หลัก (เคสไข้เลือดออก 1 เคส)
@@ -83,7 +86,7 @@ flowchart TB
 sequenceDiagram
   participant รพ as โรงพยาบาล
   participant Intake as Case Intake
-  participant OCR as OCR/Document AI
+  participant OCR as OCR ในเบราว์เซอร์ (Tesseract.js)
   participant Sheet as Google Sheet/Drive
   participant Team as ทีมสอบสวนโรค
   participant Analysis as Case Analysis
@@ -93,9 +96,10 @@ sequenceDiagram
   participant Dash as Dashboard/Reports
 
   รพ->>Intake: อัปโหลด PDF/JPEG รายงานเคส
-  Intake->>OCR: ส่งไฟล์ให้ดึงข้อมูล
-  OCR-->>Intake: ชื่อ/HN/ที่อยู่/วันป่วย/ผลตรวจ
-  Intake->>Intake: เจ้าหน้าที่ตรวจสอบ/แก้ไข (human-in-the-loop)
+  Note over Intake,OCR: ปัจจุบัน OCR รันในเบราว์เซอร์ผู้ใช้ (ไฟล์ไม่ออกนอกเครื่อง) — backlog: เปลี่ยนเป็น Claude Vision ผ่านบริการเซิร์ฟเวอร์
+  Intake->>OCR: ส่งไฟล์ให้ดึงข้อมูล (ในเบราว์เซอร์)
+  OCR-->>Intake: ชื่อ/เลขประจำตัวประชาชน/HN/ที่อยู่/วันป่วย/ผลตรวจ (อ่านลายมือ/ช่องติ๊กไม่ได้)
+  Intake->>Intake: เจ้าหน้าที่ตรวจสอบ/แก้ไข เทียบภาพต้นฉบับ (human-in-the-loop บังคับ; OCR อ่านได้น้อยให้กรอกเอง)
   Intake->>Sheet: บันทึกแถวข้อมูล + ไฟล์ต้นฉบับ
   Intake->>Team: แจ้งเตือนผ่าน LINE OA ตามพื้นที่
   Team->>Analysis: วิเคราะห์ cluster + ร่างรายงานสอบสวนโรค
@@ -178,6 +182,7 @@ sequenceDiagram
 - **รูปที่ส่งผ่าน LINE มักถูกล้าง EXIF/geotag** (Phase 3-4) — ต้องเก็บพิกัด/เวลาแยกตอนถ่ายผ่านแอป (LIFF ขอสิทธิ์ตำแหน่ง) ไม่ใช่ดึงจาก metadata ไฟล์ที่ส่งมา
 - **LINE Messaging API มี quota** (free tier จำกัดจำนวนข้อความ/เดือน) — ต้องเช็คก่อน scale การแจ้งเตือนอัตโนมัติ (Phase 4)
 - **PDPA** — ข้อมูลสุขภาพที่ส่งผ่าน 3rd-party API (Google/LINE) ต้องทบทวนให้สอดคล้องกฎหมาย โดยเฉพาะ chatbot อสม. (Phase 2) และรูปภาคสนาม (Phase 3-4) — chatbot ต้องจำกัดสิทธิ์แค่นัดหมาย/แจ้งพื้นที่ ห้ามส่งข้อมูลเคสละเอียด
+- **OCR ของ Case Intake (FEAT-INTAKE-05) มีข้อจำกัดที่ทดสอบจริง** (อัปเดต 2026-10-24) — OCR ปัจจุบัน (Tesseract.js ในเบราว์เซอร์) อ่านลายมือและช่องติ๊กในใบ รง.506 ไม่ได้ จึงต้องมี human-in-the-loop บังคับ + แผงแสดงภาพต้นฉบับข้างฟอร์มตรวจทาน + เปิดโหมดแก้ไขให้กรอกเองเมื่อ OCR อ่านได้น้อย; ฟิลด์เลขประจำตัวประชาชนเป็นข้อมูลอ่อนไหว (PDPA) และไม่ส่งให้ AI assist; ข้อมูลเคสในหน้า Case Intake ยังเก็บใน memory ไม่ persist
 - **Case clustering ต้องมี human-in-the-loop เสมอ** (Phase 2) — AI เสนอ cluster ที่เป็นไปได้เท่านั้น นักระบาดวิทยายืนยันก่อนทุกครั้ง เพราะ cluster ผิดอาจทำให้ทุ่มทรัพยากรผิดพื้นที่
 
 ## 5. ลำดับการสร้างจริง (อ้างอิง Phase ใน ROADMAP.md)
@@ -194,7 +199,7 @@ Phase 7 (Platform Foundations: Backend/API, Auth, Database) ควรทำค�
 | API Server | จุดกลางรับ-ส่ง/ประมวลผลข้อมูลระหว่าง Web App กับ Database, บริการ AI/Extraction, และบริการภายนอกทั้งหมด (เทคโนโลยีที่ยืนยัน: Node.js + Express (หรือ Fastify) — ดู TECH-STACK.md) | Web App, Auth, Database, บริการ OCR/Geocoding/Case Clustering/Vision QC/Chatbot, Google Sheet/Drive, LINE OA | FEAT-PLATFORM-01 |
 | Auth / Role-based Access | ตรวจสอบตัวตนและจำกัดสิทธิ์การเข้าถึงข้อมูล/ฟังก์ชันตาม 6 บทบาท (เทคโนโลยีที่ยืนยัน: Firebase Authentication, Email/Password — ดู TECH-STACK.md) — ปัจจุบัน implement แค่ authentication (ยืนยันตัวตน) ยังไม่มี role-based authorization จริงระดับ Security Rules/UI (ทุกผู้ใช้ที่ login เห็นทุกหน้าเหมือนกัน) | Web App, API Server | FEAT-PLATFORM-02 |
 | Database | จัดเก็บประวัติเคสและไฟล์ต้นฉบับระยะยาว (มาแทน Google Sheet/Drive เมื่อ Phase 7 เสร็จ ดู Decision Log ข้อ 1) (เทคโนโลยีที่ยืนยัน: Firebase Firestore — ดู TECH-STACK.md) | API Server | FEAT-PLATFORM-03 |
-| บริการดึงข้อมูลจากภาพเอกสาร (OCR/Document AI) | แปลงไฟล์ PDF/JPEG รายงานเคสเป็นข้อมูล (ชื่อ/HN/ที่อยู่/วันป่วย/ผลตรวจ) ให้เจ้าหน้าที่ตรวจสอบ/แก้ไขก่อนยืนยัน (human-in-the-loop) (เทคโนโลยีที่ยืนยัน: Claude Vision (Anthropic) — ดู TECH-STACK.md) | API Server (โมดูล Case Intake) | FEAT-INTAKE-05 |
+| บริการดึงข้อมูลจากภาพเอกสาร (OCR/Document AI) | แปลงไฟล์ PDF/JPEG รายงานเคสเป็นข้อมูล (ชื่อ/เลขประจำตัวประชาชน/HN/ที่อยู่/วันป่วย/ผลตรวจ) ให้เจ้าหน้าที่ตรวจสอบ/แก้ไขก่อนยืนยัน (human-in-the-loop บังคับ + แสดงภาพต้นฉบับประกอบ) — **Runtime ปัจจุบัน (2026-10-24): OCR ฝั่ง client ในเบราว์เซอร์ผู้ใช้ (เทคโนโลยีที่ยืนยัน: Tesseract.js ภาษา tha+eng + pdf.js)** ไม่เรียก API Server/Cloud Function ไม่ใช้ API key ไม่ต้องใช้ Firebase Blaze และไฟล์ไม่ออกนอกเครื่อง; ข้อจำกัด: อ่านลายมือ/ช่องติ๊กไม่ได้ จึงเปิดโหมดแก้ไขให้กรอกเองเมื่อ OCR อ่านได้น้อย. **เป้าหมายถัดไป (backlog, ต้องอัปเกรด Blaze): Claude Vision (Anthropic) ผ่านบริการเซิร์ฟเวอร์** — โค้ด Cloud Function `extractCaseReport` มีอยู่แล้วแต่ UI ไม่เรียกใช้ในปัจจุบัน — ดู Decision Log 2026-10-24 และ TECH-STACK.md | Web App (โมดูล Case Intake) ในปัจจุบัน; API Server (backlog) | FEAT-INTAKE-05 |
 | บริการ Geocoding | แปลงที่อยู่เป็นพิกัดจริง พร้อม fallback ให้ปักหมุดด้วยมือเมื่อความแม่นยำต่ำ (เทคโนโลยีที่ยืนยัน: Google Maps Geocoding API — ดู TECH-STACK.md) | API Server (โมดูล Case Intake) | FEAT-INTAKE-07 |
 | บริการ Case Clustering (statistical/spatial-temporal) | วิเคราะห์เชื่อมโยงเคสตามเวลา/พื้นที่/ความสัมพันธ์ผู้สัมผัส เสนอ "cluster ที่เป็นไปได้" ให้นักระบาดวิทยายืนยันก่อนทุกครั้ง (human-in-the-loop) (เทคโนโลยีที่ยืนยัน: BigQuery GIS — ดู TECH-STACK.md) | API Server (โมดูล Case Analysis) | FEAT-ANALYSIS-04 |
 | บริการ AI Vision QC ตรวจรูปภาคสนาม | ตรวจรูปถ่ายจากทีมพ่น/อสม. ว่าตรงกับพื้นที่/เวลาที่ต้องพ่นจริงไหม แทนคนไล่ดูทีละรูป (เทคโนโลยีที่ยืนยัน: Claude Vision (Anthropic) ผ่าน OpenRouter API — ดู TECH-STACK.md) | API Server (โมดูล Field Tracking / ASM Coordination) | FEAT-CONTROL-05 |
@@ -209,7 +214,7 @@ Phase 7 (Platform Foundations: Backend/API, Auth, Database) ควรทำค�
 
 ## 7. Decision Log
 
-> บันทึกย้อนหลังจาก decision ที่ปรากฏใน ROADMAP.md อยู่แล้ว (วันที่ 2026-08-26 ในทุกรายการหมายถึงวันที่บันทึกเป็นทางการในเอกสารนี้ ไม่ใช่วันที่ตัดสินใจจริงซึ่งเกิดขึ้นตอนวางแผน ROADMAP.md)
+> บันทึกย้อนหลังจาก decision ที่ปรากฏใน ROADMAP.md อยู่แล้ว (วันที่ 2026-08-26 ในรายการข้อ 1-6 หมายถึงวันที่บันทึกเป็นทางการในเอกสารนี้ ไม่ใช่วันที่ตัดสินใจจริงซึ่งเกิดขึ้นตอนวางแผน ROADMAP.md)
 
 | วันที่ | บริบท (Context) | ตัวเลือกที่พิจารณา | ทางที่เลือก | ผลกระทบ |
 |---|---|---|---|---|
@@ -219,3 +224,4 @@ Phase 7 (Platform Foundations: Backend/API, Auth, Database) ควรทำค�
 | 2026-08-26 | ทุกโมดูล (FEAT-DASH ถึง FEAT-ALERT) พึ่งพา Backend/API, Auth, Database ที่อยู่ใน Phase 7 ตามลำดับเลข Phase | (1) ทำตามลำดับเลข Phase (Phase 1-6 ก่อน Phase 7) (2) ทำ Phase 7 คู่ขนานหรือก่อน Phase 1-4 (3) ทำ Phase 7 แบบ incremental ทีละส่วนตามที่ Phase อื่นต้องใช้ | เลือก (2) ทำ Phase 7 (Platform Foundations: Backend/API FEAT-PLATFORM-01, Auth FEAT-PLATFORM-02, Database FEAT-PLATFORM-03) คู่ขนานหรือก่อน Phase 1-4 เพราะทุกโมดูลพึ่งพา | ลำดับการพัฒนาจริงต้องวางแผนข้าม Phase มากกว่าจะไล่ตามเลข Phase ตรงๆ ทีมพัฒนาต้องเข้าใจ dependency นี้ตั้งแต่ต้น ไม่ใช่แค่ทำตามลำดับเอกสาร |
 | 2026-08-26 | ต้อง real-time tracking ตำแหน่งทีมพ่นเทียบกับ spot map ที่วางแผนไว้ (Phase 3) | (1) ใช้ LINE native location sharing (2) สร้างแอป LIFF แยกที่ขอสิทธิ์ตำแหน่งต่อเนื่อง (3) ใช้อุปกรณ์ GPS tracker แยกต่างหาก | เลือก (2) แอป LIFF แยก (FEAT-CONTROL-04) เพราะ LINE location sharing เป็นการแชร์ครั้งเดียว ไม่มี API ติดตามตำแหน่งต่อเนื่อง | ต้องพัฒนา/ดูแลแอปแยกเพิ่มเติมนอกเหนือจาก LINE OA และต้องพิจารณาความสมัครใจ/กฎหมายแรงงานเรื่องการติดตามตำแหน่งพนักงานภาคสนามด้วย |
 | 2026-08-26 | ต้องตรวจสอบด้วย AI Vision QC ว่ารูปถ่ายภาคสนามตรงกับพื้นที่/เวลาที่ต้องพ่นจริงไหม (Phase 3-4) | (1) อ่าน EXIF/geotag จากไฟล์รูปที่ส่งผ่าน LINE โดยตรง (2) เก็บพิกัด/เวลาถ่ายภาพจากแอปตอนถ่าย (ผ่าน LIFF ขอสิทธิ์ตำแหน่ง) (3) ให้ผู้ใช้กรอกพิกัด/เวลาด้วยมือ | เลือก (2) เก็บพิกัด/เวลาจากแอปตอนถ่ายภาพ (FEAT-CONTROL-05, เกี่ยวเนื่องกับ FEAT-ASM-03) เพราะ LINE ล้าง EXIF/geotag ออกจากรูปที่ส่งผ่านแชทเป็นปกติ | ต้องพึ่งพาแอป LIFF เดียวกับที่ใช้ tracking ตำแหน่งทีมพ่น (ข้อ 5) เพิ่ม dependency ระหว่าง feature แต่ได้พิกัด/เวลาที่แม่นยำกว่าการอ่าน metadata ที่ถูกล้างไปแล้ว |
+| 2026-10-24 | Sync เอกสารให้ตรงกับโค้ดจริงของ OCR ใน Case Intake (FEAT-INTAKE-05, FEAT-INTAKE-02) — โค้ดปัจจุบันไม่เรียก Cloud Function `extractCaseReport` (Claude Vision) แล้ว เพราะต้องใช้ Firebase Blaze + API key; (รายการนี้ลงวันที่ตัดสินใจ/เปลี่ยนแปลงจริง ไม่ใช่การบันทึกย้อนหลัง) | (1) คง Claude Vision ผ่านบริการเซิร์ฟเวอร์เป็น runtime หลักทันที (ต้องอัปเกรด Blaze + จัดการ API key + ส่งไฟล์ออกจากเครื่อง) (2) OCR ฝั่ง client ในเบราว์เซอร์ด้วย Tesseract.js (tha+eng) + pdf.js ฟรี ไม่ต้องมี backend (3) ไม่ทำ OCR เลย ให้กรอกด้วยมือทั้งหมด | เลือก (2) เป็น runtime ปัจจุบัน และคง (1) Claude Vision ไว้เป็น **backlog** เมื่ออัปเกรด Blaze (ผู้ใช้ยืนยัน 2026-10-24) — การตัดสินใจเลือก Claude Vision ใน Decision Log/TECH-STACK.md เดิมยังเป็นทิศทางเป้าหมาย ไม่ถูกยกเลิก | ไม่มีต้นทุน/ไม่ต้องมี API key/ไม่ต้อง Blaze และไฟล์ไม่ออกนอกเครื่อง (ลดความเสี่ยง PDPA ของเส้นทาง OCR) แต่ความแม่นยำต่ำกว่า: อ่านลายมือ/ช่องติ๊กใบ รง.506 ไม่ได้ → human-in-the-loop บังคับ + แผงภาพต้นฉบับ + โหมดแก้ไขเมื่อ OCR อ่านได้น้อย; ฟิลด์เลขประจำตัวประชาชนไม่ส่งให้ AI assist; ข้อมูลเคสยัง in-memory ไม่ persist; เมื่อย้ายไป Claude Vision ต้องประเมิน PDPA/NFR ของเส้นทางนั้นใหม่ |
