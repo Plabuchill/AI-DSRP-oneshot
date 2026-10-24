@@ -1128,7 +1128,16 @@ main.content-wrap {
   overflow-x: auto;
 }
 
-.spotmap-wrap svg {
+/* Spot Map แบบแผนที่จริง (Leaflet + OpenStreetMap) ในหน้า Case Intake */
+.spotmap-wrap.spotmap-leaflet {
+  height: 380px;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  z-index: 0; /* ไม่ให้ชั้นแผนที่ของ Leaflet ทับ dropdown/เมนูอื่น */
+}
+
+.spotmap-wrap:not(.spotmap-leaflet) svg {
   width: 100%;
   height: auto;
   min-width: 480px;
@@ -2569,6 +2578,39 @@ main.content-wrap {
 
 .upload-ocr-status-error {
   color: var(--color-danger);
+}
+
+/* แถบความคืบหน้าระหว่างอ่านเอกสาร (Case Intake) */
+.ocr-progress {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  max-width: 420px;
+  margin: 12px auto 0;
+}
+
+.ocr-progress-track {
+  flex: 1;
+  height: 8px;
+  background: var(--color-border);
+  border-radius: var(--radius-control);
+  overflow: hidden;
+}
+
+.ocr-progress-fill {
+  width: 0;
+  height: 100%;
+  background: var(--color-primary);
+  transition: width 0.3s ease;
+}
+
+.ocr-progress-pct {
+  min-width: 3.5em;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: var(--color-primary);
 }
 
 .ai-suggest-row {

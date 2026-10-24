@@ -60,6 +60,37 @@ function init() {
     statusEl.className = "body-secondary" + (isError ? " upload-ocr-status-error" : "");
   }
 
+  // แถบความคืบหน้า 0-100% — percent = null ซ่อนแถบ
+  const progressEl = document.getElementById("upload-ocr-progress");
+  const progressFill = document.getElementById("upload-ocr-progress-fill");
+  const progressPct = document.getElementById("upload-ocr-progress-pct");
+  let progressTimer = null;
+  let hideTimer = null;
+  function setProgress(percent) {
+    if (!progressEl) return;
+    if (hideTimer) { clearTimeout(hideTimer); hideTimer = null; }
+    if (percent == null) { progressEl.style.display = "none"; return; }
+    const p = Math.max(0, Math.min(100, Math.round(percent)));
+    progressEl.style.display = "flex";
+    progressFill.style.width = p + "%";
+    progressPct.textContent = p + "%";
+    progressEl.setAttribute("aria-valuenow", String(p));
+  }
+
+  // AI ไม่รายงานความคืบหน้าจริง — ประมาณจากเวลาที่ผ่านไป (ปกติ ~10-15 วินาที) วิ่งเข้าหา 90% แต่ไม่ถึง
+  // จนกว่าผลจริงจะกลับมา
+  function startEstimatedProgress() {
+    const start = Date.now();
+    setProgress(5);
+    progressTimer = setInterval(function () {
+      setProgress(5 + 85 * (1 - Math.exp(-(Date.now() - start) / 6000)));
+    }, 250);
+  }
+  function stopEstimatedProgress() {
+    if (progressTimer) clearInterval(progressTimer);
+    progressTimer = null;
+  }
+
   async function handleFile(file) {
     if (!ALLOWED_MIME_TYPES.includes(file.type)) {
       setStatus("รองรับเฉพาะไฟล์ PDF, JPEG, PNG เท่านั้น", true);
@@ -75,20 +106,27 @@ function init() {
     try {
       let result = null; let aiNote = "";
       if (AI_OCR_URL && aiCheckbox && aiCheckbox.checked) {
-        setStatus("กำลังส่งเอกสารให้ AI อ่าน (อาจใช้เวลาสักครู่)...", false);
+        setStatus("กำลังให้ AI อ่านเอกสาร (เปอร์เซ็นต์โดยประมาณ ปกติใช้เวลา 10-15 วินาที)...", false);
+        startEstimatedProgress();
         try {
           result = await extractCaseReportAI(file);
         } catch (aiErr) {
           aiNote = "AI ใช้ไม่ได้ (" + (aiErr && aiErr.message ? aiErr.message : "เกิดข้อผิดพลาด") + ") — ใช้ OCR ในเครื่องแทน (ลายมืออาจอ่านไม่ได้)"; setStatus(aiNote, true);
+        } finally {
+          stopEstimatedProgress();
         }
       }
       if (!result) {
         if (!(aiCheckbox && aiCheckbox.checked)) setStatus("กำลังเริ่มอ่านเอกสารด้วย OCR...", false);
-        result = await extractCaseReportLocal(file, function (message) {
-          setStatus(message, false);
+        setProgress(0);
+        result = await extractCaseReportLocal(file, function (message, percent) {
+          // ถ้า AI ล้มเหลวมาก่อน ให้คงข้อความแจ้งเตือนไว้ แสดงความคืบหน้าผ่านแถบอย่างเดียว
+          if (!aiNote) setStatus(message, false);
+          if (percent != null) setProgress(percent);
         });
       }
 
+      setProgress(100);
       setStatus(aiNote, !!aiNote);
       document.dispatchEvent(new CustomEvent("case-intake:ocr-result", {
         detail: {
@@ -101,8 +139,11 @@ function init() {
       }));
     } catch (err) {
       setStatus("แปลงเอกสารไม่สำเร็จ: " + (err && err.message ? err.message : "เกิดข้อผิดพลาด"), true);
+      setProgress(null);
     } finally {
       selectBtn.disabled = false;
+      // ค้าง 100% ไว้ครู่หนึ่งให้เห็นว่าเสร็จ แล้วซ่อนแถบ
+      if (progressEl && progressEl.style.display !== "none") hideTimer = setTimeout(function () { setProgress(null); }, 1500);
     }
   }
 

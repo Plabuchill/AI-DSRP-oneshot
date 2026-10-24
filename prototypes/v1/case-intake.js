@@ -192,6 +192,7 @@
       geoAccuracy: "high",
       geoAdjusted: false,
       status: "confirmed",
+      latitude: 16.4419, longitude: 102.7856, // พิกัดสมมุติในพื้นที่ตามที่อยู่ (ไม่ใช่บ้านจริงของใคร)
       mapX: 22, mapY: 68,
       seedLogTimestamp: "19 ส.ค. 2569, 14:02 น."
     },
@@ -215,6 +216,7 @@
       geoAccuracy: "low",
       geoAdjusted: false,
       status: "pending",
+      latitude: 16.4560, longitude: 102.8215, // พิกัดสมมุติในพื้นที่ตามที่อยู่ (ไม่ใช่บ้านจริงของใคร)
       mapX: 30, mapY: 45
     },
     {
@@ -237,6 +239,7 @@
       geoAccuracy: "high",
       geoAdjusted: false,
       status: "pending",
+      latitude: 14.9707, longitude: 102.1366, // พิกัดสมมุติในพื้นที่ตามที่อยู่ (ไม่ใช่บ้านจริงของใคร)
       mapX: 55, mapY: 30
     },
     {
@@ -259,6 +262,7 @@
       geoAccuracy: "high",
       geoAdjusted: false,
       status: "pending",
+      latitude: 18.9125, longitude: 98.9447, // พิกัดสมมุติในพื้นที่ตามที่อยู่ (ไม่ใช่บ้านจริงของใคร)
       mapX: 78, mapY: 55
     },
     {
@@ -281,6 +285,7 @@
       geoAccuracy: "low",
       geoAdjusted: false,
       status: "pending",
+      latitude: 12.9727, longitude: 100.9061, // พิกัดสมมุติในพื้นที่ตามที่อยู่ (ไม่ใช่บ้านจริงของใคร)
       mapX: 45, mapY: 80
     },
     {
@@ -303,6 +308,7 @@
       geoAccuracy: "high",
       geoAdjusted: false,
       status: "pending",
+      latitude: 7.1798, longitude: 100.5951, // พิกัดสมมุติในพื้นที่ตามที่อยู่ (ไม่ใช่บ้านจริงของใคร)
       mapX: 65, mapY: 20
     }
   ];
@@ -617,57 +623,61 @@
   }
 
   /* ---------------------------------------------------------
-     Render: Spot map (inline SVG — abstract village grid,
-     pins for confirmed cases + 100m radius rings)
+     Render: Spot map — แผนที่จริงด้วย Leaflet + OpenStreetMap
+     ปักหมุดเฉพาะเคสที่ยืนยันแล้วและมีพิกัด พร้อมวงรัศมีเฝ้าระวัง 100 เมตร
      --------------------------------------------------------- */
-  function buildSpotMapSVG() {
-    var W = 640, H = 380;
-    var confirmed = CASES.filter(function (c) { return c.status === "confirmed"; });
-    var parts = [];
-
-    parts.push('<svg viewBox="0 0 ' + W + ' ' + H + '" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="แผนที่จุดเกิดเหตุระดับตำบลหมู่บ้าน">');
-    parts.push('<rect x="0" y="0" width="' + W + '" height="' + H + '" fill="#F5F1EA" stroke="#DCD3C4" stroke-width="1"></rect>');
-
-    var step = 64;
-    for (var gx = step; gx < W; gx += step) {
-      parts.push('<line x1="' + gx + '" y1="0" x2="' + gx + '" y2="' + H + '" stroke="#DCD3C4" stroke-width="1" stroke-opacity="0.6"></line>');
-    }
-    for (var gy = step; gy < H; gy += step) {
-      parts.push('<line x1="0" y1="' + gy + '" x2="' + W + '" y2="' + gy + '" stroke="#DCD3C4" stroke-width="1" stroke-opacity="0.6"></line>');
-    }
-
-    // simple road line for visual orientation only (abstract, not geodata)
-    parts.push('<line x1="0" y1="' + (H * 0.62) + '" x2="' + W + '" y2="' + (H * 0.5) + '" stroke="#B3A996" stroke-width="3" stroke-dasharray="10 8" stroke-opacity="0.6"></line>');
-    parts.push('<text x="12" y="20" font-size="11" fill="#6E6355" font-family="Inter, system-ui, sans-serif">แผนที่จำลอง — ไม่อ้างอิงพิกัดจริง</text>');
-
-    if (confirmed.length === 0) {
-      parts.push('<text x="' + (W / 2) + '" y="' + (H / 2) + '" text-anchor="middle" font-size="13" fill="#6E6355" font-family="Inter, system-ui, sans-serif">ยังไม่มีเคสที่ยืนยันแล้วบนแผนที่</text>');
-    }
-
-    confirmed.forEach(function (c) {
-      var px = (c.mapX / 100) * W;
-      var py = (c.mapY / 100) * H;
-      var flagged = c.geoAccuracy === "low" && !c.geoAdjusted;
-      var adjusted = c.geoAdjusted; // ไม่ผูกกับ geoAccuracy อีกต่อไป — ปรับพิกัดด้วยมือได้ทุก accuracy tier
-      var color = flagged ? "#C9A66B" : (adjusted ? "#7A6A53" : "#8A9A5B");
-      var dash = flagged ? ' stroke-dasharray="5 4"' : "";
-      var statusLabel = flagged ? "พิกัดแม่นยำต่ำ (ยังไม่ปรับ)" : (adjusted ? "ปรับพิกัดด้วยมือแล้ว" : "พิกัดแม่นยำสูง");
-
-      parts.push('<g class="spot-pin-group">');
-      parts.push('<circle cx="' + px + '" cy="' + py + '" r="30" fill="' + color + '" fill-opacity="0.14" stroke="' + color + '" stroke-width="1.5"' + dash + '></circle>');
-      parts.push('<circle cx="' + px + '" cy="' + py + '" r="6" fill="' + color + '"></circle>');
-      parts.push('<text x="' + px + '" y="' + (py - 14) + '" text-anchor="middle" font-size="11" font-weight="600" fill="#33291F" font-family="Inter, system-ui, sans-serif">' + c.patientName.split(" ")[0] + "</text>");
-      parts.push('<text x="' + px + '" y="' + (py + 22) + '" text-anchor="middle" font-size="10" fill="#6E6355" font-family="Inter, system-ui, sans-serif">ต.' + c.subdistrict + "</text>");
-      parts.push("<title>" + c.patientName + " — " + c.address + " · " + TEAMS[c.zone] + " · " + statusLabel + "</title>");
-      parts.push("</g>");
-    });
-
-    parts.push("</svg>");
-    return parts.join("");
-  }
+  var PIN_COLORS = { normal: "#8A9A5B", flagged: "#C9A66B", adjusted: "#7A6A53" };
+  var spotMap = null;
+  var spotLayer = null;
 
   function renderSpotMap() {
-    els.spotmapWrap.innerHTML = buildSpotMapSVG();
+    if (typeof L === "undefined") {
+      els.spotmapWrap.innerHTML = '<p class="body-secondary" style="padding:16px;">โหลดแผนที่ไม่ได้ (ต้องเชื่อมต่ออินเทอร์เน็ต)</p>';
+      return;
+    }
+    if (!spotMap) {
+      spotMap = L.map(els.spotmapWrap, { scrollWheelZoom: false }).setView([13.5, 101], 5);
+      L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        maxZoom: 19,
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+      }).addTo(spotMap);
+      spotLayer = L.layerGroup().addTo(spotMap);
+      // กรอบแผนที่เปลี่ยนขนาด (responsive/โหลด CSS ช้า) -> ให้ Leaflet คำนวณใหม่ ไม่งั้นจะเหลือพื้นที่เทาไม่มีแผนที่
+      if (typeof ResizeObserver !== "undefined") {
+        new ResizeObserver(function () { spotMap.invalidateSize(); }).observe(els.spotmapWrap);
+      }
+    }
+    spotMap.invalidateSize();
+    spotLayer.clearLayers();
+
+    var bounds = [];
+    CASES.forEach(function (c) {
+      if (c.status !== "confirmed" || typeof c.latitude !== "number" || typeof c.longitude !== "number") return;
+      var flagged = c.geoAccuracy === "low" && !c.geoAdjusted;
+      var adjusted = c.geoAdjusted; // ไม่ผูกกับ geoAccuracy — ปรับพิกัดด้วยมือได้ทุก accuracy tier
+      var color = flagged ? PIN_COLORS.flagged : (adjusted ? PIN_COLORS.adjusted : PIN_COLORS.normal);
+      var statusLabel = flagged ? "พิกัดแม่นยำต่ำ (ยังไม่ปรับ)" : (adjusted ? "ปรับพิกัดด้วยมือแล้ว" : "พิกัดแม่นยำสูง");
+      var latlng = [c.latitude, c.longitude];
+
+      L.circle(latlng, {
+        radius: 100, color: color, weight: 1.5, fillColor: color, fillOpacity: 0.14,
+        dashArray: flagged ? "5 4" : null
+      }).addTo(spotLayer);
+      L.circleMarker(latlng, { radius: 7, color: "#FFFFFF", weight: 2, fillColor: color, fillOpacity: 1 })
+        .bindTooltip(escapeHtml(String(c.patientName || "").split(" ")[0]), { permanent: true, direction: "top", offset: [0, -8] })
+        .bindPopup(
+          "<strong>" + escapeHtml(c.patientName) + "</strong><br>" +
+          escapeHtml(c.address) + "<br>" +
+          escapeHtml(diseaseLabel(c.diseaseId)) + "<br>" +
+          escapeHtml(TEAMS[c.zone] || "") + " · " + statusLabel + "<br>" +
+          c.latitude.toFixed(4) + ", " + c.longitude.toFixed(4)
+        )
+        .addTo(spotLayer);
+      bounds.push(latlng);
+    });
+
+    if (bounds.length === 1) spotMap.setView(bounds[0], 15);
+    else if (bounds.length > 1) spotMap.fitBounds(bounds, { padding: [40, 40], maxZoom: 15 });
   }
 
   /* ---------------------------------------------------------
@@ -742,10 +752,10 @@
     renderOCRTable();
   }
 
-  // Validate and persist manually-entered coordinates, then recompute the
-  // pin's SVG position (c.mapX/c.mapY) by normalizing lat/long within a
-  // rough Thailand bounding box (lat 5.5–21, lng 97–106), clamped to 0-100
-  // so the pin can never render outside the mock map's SVG viewport.
+  // Validate and persist manually-entered coordinates (must fall inside a
+  // rough Thailand bounding box, lat 5.5–21, lng 97–106). The Spot Map pins
+  // read c.latitude/c.longitude directly; c.mapX/c.mapY are legacy fields
+  // from the old abstract SVG map and are kept only for undo bookkeeping.
   function saveGeoCoordinates(id, text) {
     var c = getCaseById(id);
     if (!c) return;

@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Case Intake — AI-DSRP</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -115,6 +116,10 @@
           <input type="checkbox" id="use-ai-ocr">
           ใช้ AI อ่านลายมือ (Google Gemini ฟรี) — <strong>ภาพเอกสารจะถูกส่งออกไปยังบริการภายนอก</strong> และ Google อาจนำข้อมูลไปพัฒนาผลิตภัณฑ์ในระดับฟรี ใช้กับเอกสารทดสอบ/ข้อมูลสมมุติเท่านั้น ห้ามใช้กับข้อมูลผู้ป่วยจริง
         </label>
+        <div id="upload-ocr-progress" class="ocr-progress" style="display:none;" role="progressbar" aria-label="ความคืบหน้าการอ่านเอกสาร" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+          <div class="ocr-progress-track"><div class="ocr-progress-fill" id="upload-ocr-progress-fill"></div></div>
+          <span class="ocr-progress-pct" id="upload-ocr-progress-pct">0%</span>
+        </div>
         <p id="upload-ocr-status" class="body-secondary" style="display:none;margin-top:8px;"></p>
       </div>
 
@@ -173,7 +178,7 @@
             </h2>
             <span class="body-secondary">ระดับตำบล/หมู่บ้าน · รัศมีเฝ้าระวัง 100 เมตร</span>
           </div>
-          <div class="spotmap-wrap" id="spotmap-wrap"></div>
+          <div class="spotmap-wrap spotmap-leaflet" id="spotmap-wrap" role="region" aria-label="แผนที่จุดเกิดเหตุ (OpenStreetMap)"></div>
           <div class="region-legend">
             <div class="region-legend-item"><span class="pin-dot pin-normal"></span>หมุดยืนยันแล้ว (พิกัดแม่นยำสูง)</div>
             <div class="region-legend-item"><span class="pin-dot pin-flagged"></span>พิกัดแม่นยำต่ำ (ยังไม่ปรับ)</div>
@@ -206,6 +211,7 @@
   </div>
 </div>
 </div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="case-intake.js"></script>
 <script type="module" src="case-intake-upload.js"></script>
 <script type="module" src="case-intake-diagnose.js"></script>

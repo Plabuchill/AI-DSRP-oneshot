@@ -215,31 +215,45 @@ async function pdfToCanvases(file) {
   return canvases;
 }
 
-// onProgress(message) รับข้อความสถานะภาษาไทยสำหรับแสดงผู้ใช้
+// onProgress(message, percent) รับข้อความสถานะภาษาไทย + เปอร์เซ็นต์รวมทั้งงาน (0-100) สำหรับแสดงผู้ใช้
+// สัดส่วน: โหลดโมดูล 0-10%, แปลง PDF 10-15%, อ่านข้อความ 15-95% (แบ่งเท่าๆ กันต่อหน้า), แยกช่องข้อมูล 95-100%
 export async function extractCaseReportLocal(file, onProgress) {
-  const report = onProgress || function () {};
-  report("กำลังโหลดโมดูล OCR ภาษาไทย (ครั้งแรกอาจใช้เวลาสักครู่)...");
+  let lastPercent = 0;
+  // เปอร์เซ็นต์เดินหน้าอย่างเดียว ไม่ถอยหลังเมื่อ Tesseract เริ่มขั้นย่อยถัดไปที่ progress กลับมาเริ่ม 0
+  const report = function (message, percent) {
+    lastPercent = Math.max(lastPercent, percent);
+    if (onProgress) onProgress(message, lastPercent);
+  };
+  const loadingLabel = "กำลังโหลดโมดูล OCR ภาษาไทย (ครั้งแรกอาจใช้เวลาสักครู่)...";
+  report(loadingLabel, 0);
+  progressListener = function (m) {
+    // โหลดตัว OCR 0-4%, โหลดข้อมูลภาษาไทย 4-10%
+    if (m.status === "loading tesseract core") report(loadingLabel, (m.progress || 0) * 4);
+    else if (m.status === "loading language traineddata") report(loadingLabel, 4 + (m.progress || 0) * 6);
+  };
   const worker = await getWorker();
 
   let inputs;
   if (file.type === "application/pdf") {
-    report("กำลังแปลงหน้า PDF เป็นรูปภาพ...");
+    report("กำลังแปลงหน้า PDF เป็นรูปภาพ...", 10);
     inputs = await pdfToCanvases(file);
   } else {
     inputs = [file];
   }
 
   const texts = [];
+  const perPage = 80 / inputs.length;
   for (let i = 0; i < inputs.length; i++) {
+    const label = "กำลังอ่านข้อความ" + (inputs.length > 1 ? " หน้า " + (i + 1) + "/" + inputs.length : "") + "...";
+    report(label, 15 + perPage * i);
     progressListener = function (m) {
-      if (m.status === "recognizing text") {
-        report("กำลังอ่านข้อความ" + (inputs.length > 1 ? " หน้า " + (i + 1) + "/" + inputs.length : "") + " " + Math.round((m.progress || 0) * 100) + "%");
-      }
+      if (m.status === "recognizing text") report(label, 15 + perPage * (i + (m.progress || 0)));
     };
     const result = await worker.recognize(inputs[i]);
     texts.push(result.data.text || "");
   }
   progressListener = null;
+  report("กำลังแยกช่องข้อมูล...", 95);
 
   const text = texts.join("\n");
   if (!text.replace(/\s/g, "")) {
