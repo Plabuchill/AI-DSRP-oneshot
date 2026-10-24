@@ -472,7 +472,12 @@
 
   function actionCellHtml(c, editing) {
     if (c.status === "confirmed") {
-      return '<span class="confirmed-check">' + ICON_CHECK + "ยืนยันแล้ว</span>";
+      return (
+        '<span class="confirmed-check">' + ICON_CHECK + "ยืนยันแล้ว</span>" +
+        '<div class="row-actions" style="margin-top:6px;">' +
+          '<button type="button" class="btn btn-outline btn-sm btn-reopen-row" data-id="' + c.id + '">' + ICON_EDIT + "แก้ไข</button>" +
+        "</div>"
+      );
     }
     if (editing) {
       return (
@@ -683,9 +688,9 @@
   /* ---------------------------------------------------------
      Actions
      --------------------------------------------------------- */
-  // ⚠️ c.status เปลี่ยนได้จากฟังก์ชันนี้เท่านั้น และฟังก์ชันนี้ถูกเรียกจาก click handler ของ
-  // ปุ่ม "ยืนยัน" (.btn-confirm) เท่านั้น — ห้าม AI (case-intake-diagnose.js/case-intake-upload.js)
-  // เรียก confirmCase() หรือแก้ c.status ตรงๆ เด็ดขาด ต้องรอคนกดยืนยันเสมอ
+  // ⚠️ c.status เปลี่ยนได้จากฟังก์ชันนี้และ reopenCase() เท่านั้น ซึ่งถูกเรียกจาก click handler ของ
+  // ปุ่ม "ยืนยัน" (.btn-confirm) / "แก้ไข" ของแถวที่ยืนยันแล้ว (.btn-reopen-row) เท่านั้น — ห้าม AI
+  // (case-intake-diagnose.js/case-intake-upload.js) เรียกหรือแก้ c.status ตรงๆ เด็ดขาด ต้องรอคนกดเสมอ
   function confirmCase(id) {
     var c = getCaseById(id);
     if (!c || c.status === "confirmed") return;
@@ -902,6 +907,20 @@
     renderOCRTable();
   }
 
+  // แก้แถวที่ยืนยันแล้ว: ยกเลิกการยืนยันกลับเป็น "รอตรวจสอบ" แล้วเปิดโหมดแก้ไขทันที — หมุดออกจากแผนที่
+  // จนกว่าจะกดยืนยันใหม่ (ซึ่งจะแจ้งเตือนทีมอีกครั้ง) บันทึกแจ้งเตือนเดิมเก็บไว้เป็นประวัติ ไม่ลบ
+  function reopenCase(id) {
+    var c = getCaseById(id);
+    if (!c || c.status !== "confirmed") return;
+    if (!window.confirm("ยกเลิกการยืนยันเคส \"" + c.patientName + "\" เพื่อแก้ไข?\nเคสจะกลับเป็น \"รอตรวจสอบ\" และหมุดจะออกจากแผนที่ แก้เสร็จต้องกดยืนยันใหม่ ระบบจะแจ้งเตือนทีมสอบสวนโรคอีกครั้ง")) return;
+
+    c.status = "pending";
+    editingId = id;
+    renderOCRTable();
+    renderUploadList();
+    renderSpotMap();
+  }
+
   // ลบแถวที่ยังรอตรวจสอบ (เช่น อัปโหลดผิดไฟล์/ซ้ำ) — แถวที่ยืนยันแล้วลบไม่ได้ เพราะแจ้งเตือนทีมไปแล้ว
   function deleteCase(id) {
     var c = getCaseById(id);
@@ -946,6 +965,11 @@
       var confirmBtn = e.target.closest(".btn-confirm");
       if (confirmBtn) {
         confirmCase(parseInt(confirmBtn.getAttribute("data-id"), 10));
+        return;
+      }
+      var reopenBtn = e.target.closest(".btn-reopen-row");
+      if (reopenBtn) {
+        reopenCase(parseInt(reopenBtn.getAttribute("data-id"), 10));
         return;
       }
       var deleteBtn = e.target.closest(".btn-delete-row");

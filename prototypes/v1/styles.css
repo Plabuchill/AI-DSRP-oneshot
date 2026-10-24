@@ -1186,7 +1186,8 @@ main.content-wrap {
   gap: 8px;
 }
 
-.row-actions .btn-edit-row svg {
+.row-actions .btn-edit-row svg,
+.row-actions .btn-reopen-row svg {
   width: 14px;
   height: 14px;
   margin-right: 4px;
