@@ -1,26 +1,14 @@
-// อัปโหลดเอกสารรายงานผู้ป่วยจริง (FEAT-INTAKE-05) — เชื่อมต่อ Cloud Function "extractCaseReport"
-// (Claude Vision ผ่าน Anthropic API) แทน mock data เดิมทั้งหมด
-// ต่างจาก case-intake.js (classic script, mock CASES array) — ไฟล์นี้เป็น type="module" จุดเดียวในหน้านี้
-// ที่คุยกับ Firebase/Cloud Function แล้วส่งผลลัพธ์กลับไปให้ case-intake.js ผ่าน CustomEvent
-// "case-intake:ocr-result" (ตาม pattern เดียวกับ case-analysis.js + case-analysis-506.js)
+// อัปโหลดเอกสารรายงานผู้ป่วยจริง (FEAT-INTAKE-05) — OCR ในเบราว์เซอร์ด้วย Tesseract.js
+// (case-intake-ocr.js) ไม่ใช้ Cloud Function/Blaze/คีย์ AI และไฟล์ไม่ออกนอกเครื่องผู้ใช้
+// (Cloud Function extractCaseReport + Claude Vision ยังอยู่ใน functions/ เผื่อกลับไปใช้ตอนอัปเกรด Blaze)
+// ต่างจาก case-intake.js (classic script, mock CASES array) — ไฟล์นี้เป็น type="module" ที่ส่งผลลัพธ์
+// กลับไปให้ case-intake.js ผ่าน CustomEvent "case-intake:ocr-result"
+// (ตาม pattern เดียวกับ case-analysis.js + case-analysis-506.js)
 
-import { functions } from "./firebase-init.js";
-import { httpsCallable } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-functions.js";
+import { extractCaseReportLocal } from "./case-intake-ocr.js";
 
-const MAX_FILE_BYTES = 7 * 1024 * 1024; // ต้องตรงกับ MAX_FILE_BYTES ใน functions/index.js
+const MAX_FILE_BYTES = 7 * 1024 * 1024;
 const ALLOWED_MIME_TYPES = ["application/pdf", "image/jpeg", "image/png"];
-
-function readFileAsBase64(file) {
-  return new Promise(function (resolve, reject) {
-    const reader = new FileReader();
-    reader.onload = function () {
-      const result = String(reader.result || "");
-      resolve(result.substring(result.indexOf(",") + 1));
-    };
-    reader.onerror = function () { reject(new Error("อ่านไฟล์ไม่สำเร็จ")); };
-    reader.readAsDataURL(file);
-  });
-}
 
 function init() {
   const selectBtn = document.getElementById("btn-select-file");
@@ -28,8 +16,6 @@ function init() {
   const dropzone = document.getElementById("dropzone");
   const statusEl = document.getElementById("upload-ocr-status");
   if (!selectBtn || !fileInput) return; // หน้าอื่นไม่มี element นี้
-
-  const extractCaseReport = httpsCallable(functions, "extractCaseReport");
 
   function setStatus(message, isError) {
     if (!statusEl) return;
@@ -49,20 +35,17 @@ function init() {
     }
 
     selectBtn.disabled = true;
-    setStatus("กำลังแปลงเอกสารด้วย OCR (Claude Vision)...", false);
+    setStatus("กำลังเริ่มอ่านเอกสารด้วย OCR...", false);
 
     try {
-      const base64 = await readFileAsBase64(file);
-      const result = await extractCaseReport({
-        fileBase64: base64,
-        mimeType: file.type,
-        fileName: file.name
+      const result = await extractCaseReportLocal(file, function (message) {
+        setStatus(message, false);
       });
 
       setStatus("", false);
       document.dispatchEvent(new CustomEvent("case-intake:ocr-result", {
         detail: {
-          fields: result.data.fields,
+          fields: result.fields,
           fileName: file.name,
           fileType: file.type === "application/pdf" ? "PDF" : (file.type === "image/png" ? "PNG" : "JPEG"),
           fileSize: Math.max(1, Math.round(file.size / 1024)) + " KB"
