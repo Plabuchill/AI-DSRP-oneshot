@@ -7,7 +7,8 @@ compatibility_date = "2026-01-01"
 ALLOWED_ORIGINS = "https://ai-dsrp.web.app,https://ai-dsrp.firebaseapp.com"
 # Firebase web API key ของโปรเจกต์ (เป็นค่าสาธารณะ ตัวเดียวกับใน prototypes/v1/firebase-init.js) ใช้ตรวจ ID token
 FIREBASE_API_KEY = "AIzaSyCURDU09t4XimMJJS3-2tMJ03R_UG3eHHA"
-# โมเดล Gemini ที่ใช้ — ตรวจรายชื่อรุ่นที่ฟรีและรับภาพได้ใน Google AI Studio แล้วเปลี่ยนที่นี่ถ้าจำเป็น
-GEMINI_MODEL = "gemini-flash-latest"
+# โมเดล Gemini ที่ใช้ เรียงตามลำดับที่จะลอง (คั่นด้วย , ) — รุ่นแรกไม่ว่าง/ไม่มีแล้ว จะลองรุ่นถัดไป
+# ตรวจรายชื่อรุ่นที่ฟรีและรับภาพได้ใน Google AI Studio แล้วเปลี่ยนที่นี่ถ้าจำเป็น
+GEMINI_MODEL = "gemini-flash-latest,gemini-2.5-flash,gemini-flash-lite-latest,gemini-2.5-flash-lite,gemini-2.0-flash"
 
 # GEMINI_API_KEY เป็น secret ห้ามใส่ในไฟล์นี้ ตั้งด้วย: npx wrangler secret put GEMINI_API_KEY

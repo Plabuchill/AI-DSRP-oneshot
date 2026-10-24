@@ -130,20 +130,27 @@ export default {
     if (ALLOWED_MIME.indexOf(mimeType) === -1) return json({ error: "รองรับเฉพาะ PDF, JPEG, PNG" }, 400, cors);
     if (typeof data !== "string" || !data || data.length > MAX_BASE64_CHARS) return json({ error: "ไฟล์ว่างหรือใหญ่เกินไป (จำกัด ~7MB)" }, 400, cors);
 
-    const model = env.GEMINI_MODEL || "gemini-flash-latest";
-    let res;
-    try {
-      res = await fetch("https://generativelanguage.googleapis.com/v1beta/models/" + encodeURIComponent(model) + ":generateContent", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "x-goog-api-key": env.GEMINI_API_KEY },
-        body: JSON.stringify({
-          contents: [{ role: "user", parts: [{ text: buildPrompt() }, { inline_data: { mime_type: mimeType, data: data } }] }],
-          generationConfig: { temperature: 0, responseMimeType: "application/json", responseSchema: RESPONSE_SCHEMA }
-        })
-      });
-    } catch (e) {
-      return json({ error: "เรียกบริการ AI ไม่สำเร็จ" }, 502, cors);
+    // GEMINI_MODEL คั่นด้วย , ได้ — ถ้ารุ่นแรกไม่ว่าง (503/500) หรือไม่มีแล้ว (404) จะลองรุ่นถัดไป
+    const models = String(env.GEMINI_MODEL || "gemini-flash-latest").split(",").map(function (s) { return s.trim(); }).filter(Boolean);
+    const requestBody = JSON.stringify({
+      contents: [{ role: "user", parts: [{ text: buildPrompt() }, { inline_data: { mime_type: mimeType, data: data } }] }],
+      generationConfig: { temperature: 0, responseMimeType: "application/json", responseSchema: RESPONSE_SCHEMA }
+    });
+    let res = null;
+    for (let i = 0; i < models.length; i++) {
+      try {
+        res = await fetch("https://generativelanguage.googleapis.com/v1beta/models/" + encodeURIComponent(models[i]) + ":generateContent", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-goog-api-key": env.GEMINI_API_KEY },
+          body: requestBody
+        });
+      } catch (e) {
+        res = null;
+      }
+      console.log("gemini", models[i], res ? res.status : "fetch-failed"); // log เฉพาะรุ่น/สถานะ ไม่ log ภาพหรือผลลัพธ์
+      if (res && [404, 500, 503].indexOf(res.status) === -1) break;
     }
+    if (!res) return json({ error: "เรียกบริการ AI ไม่สำเร็จ" }, 502, cors);
 
     if (res.status === 429) return json({ error: "โควตาฟรีของ AI เต็มชั่วคราว ลองใหม่ภายหลัง", code: "quota" }, 429, cors);
     if (!res.ok) return json({ error: "บริการ AI ตอบกลับผิดพลาด (" + res.status + ")" }, 502, cors);

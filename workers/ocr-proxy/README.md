@@ -17,7 +17,7 @@
    npx wrangler deploy
    ```
 3. นำ URL ที่ได้ (`https://ai-dsrp-ocr-proxy.<บัญชี>.workers.dev`) ใส่ใน `prototypes/v1/ocr-config.js` (`AI_OCR_URL`) แล้ว `firebase deploy --only hosting`
-4. ถ้าโมเดลเริ่มต้นใช้ไม่ได้/ไม่ฟรี ตรวจรายชื่อรุ่นใน AI Studio แล้วแก้ `GEMINI_MODEL` ใน `wrangler.toml`
+4. `GEMINI_MODEL` ใน `wrangler.toml` เป็นรายชื่อรุ่นคั่นด้วย `,` — รุ่นแรกไม่ว่าง (503/500) หรือไม่มีแล้ว (404) จะลองรุ่นถัดไปเอง ถ้าทุกรุ่นใช้ไม่ได้ ตรวจรายชื่อรุ่นใน AI Studio แล้วแก้รายการนี้
 5. ทดสอบในเครื่อง: เพิ่ม `http://localhost:8743` ใน `ALLOWED_ORIGINS`
 
 รหัสโรคใน `src/index.js` (`DISEASES`) ต้องตรงกับ `DISEASE_TYPES` ใน `prototypes/v1/case-intake.js`

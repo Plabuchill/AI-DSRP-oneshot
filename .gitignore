@@ -16,3 +16,6 @@ scripts/seed/serviceAccountKey.json
 *credentials*.json
 *secret*.json
 test-openrouter.html
+
+# Cloudflare Wrangler local state/cache
+.wrangler/
