@@ -35,6 +35,138 @@
   };
 
   /* ---------------------------------------------------------
+     โรคตามแบบ รง.506 (รหัส + ชื่อ) — คัดจากตัวอย่างฟอร์มจริงที่ผู้ใช้ส่งมา เฉพาะรายการที่อ่านชัดเจน
+     ใช้เป็นตัวเลือก dropdown "โรค" (ไม่พึ่ง Firestore) ควรตรวจกับรายการทางการอีกครั้ง
+     --------------------------------------------------------- */
+  var DISEASE_TYPES = [
+    { id: "01", name: "อหิวาตกโรค" }, { id: "02", name: "อุจจาระร่วง" }, { id: "03", name: "อาหารเป็นพิษ" },
+    { id: "04", name: "บิด (Dysentery, unspecified)" }, { id: "07", name: "Enteric fever" },
+    { id: "10", name: "ตับอักเสบ (Hepatitis, unspecified)" }, { id: "11", name: "Hepatitis A" },
+    { id: "12", name: "Hepatitis B" }, { id: "13", name: "Hepatitis C" }, { id: "14", name: "โรคตาแดง" },
+    { id: "15", name: "ไข้หวัดใหญ่" }, { id: "16", name: "หัดเยอรมัน" }, { id: "17", name: "สุกใส" },
+    { id: "18", name: "ไข้หรือไข้ไม่ทราบสาเหตุ" }, { id: "20", name: "โปลิโอมัยเอไลติส" }, { id: "21", name: "หัด" },
+    { id: "23", name: "คอตีบ" }, { id: "24", name: "ไอกรน" }, { id: "25", name: "บาดทะยัก" },
+    { id: "26", name: "ไข้เลือดออก (DHF)" }, { id: "27", name: "ไข้เลือดออกช็อก (DSS)" },
+    { id: "28", name: "ไข้สมองอักเสบ (Encephalitis, unspecified)" }, { id: "29", name: "Japanese encephalitis" },
+    { id: "30", name: "มาลาเรีย" }, { id: "31", name: "โรคปอดบวม (Pneumonia)" }, { id: "32", name: "วัณโรคปอด" },
+    { id: "35", name: "โรคเรื้อน" }, { id: "42", name: "พิษสุนัขบ้า" }, { id: "43", name: "Leptospirosis" },
+    { id: "44", name: "สครับไทฟัส" }, { id: "52", name: "คางทูม" }, { id: "65", name: "กล้ามเนื้ออ่อนปวกเปียกแบบเฉียบพลัน (AFP)" },
+    { id: "66", name: "ไข้เด็งกี่ (Dengue fever)" }, { id: "71", name: "Hand Foot Mouth disease (HFM)" },
+    { id: "72", name: "Melioidosis" }, { id: "84", name: "Chikungunya fever" }, { id: "85", name: "Botulism" },
+    { id: "87", name: "Zika Virus" }, { id: "99", name: "โรคอื่นๆ (ระบุ)" }
+  ];
+
+  function diseaseNameById(id) {
+    for (var i = 0; i < DISEASE_TYPES.length; i++) {
+      if (DISEASE_TYPES[i].id === id) return DISEASE_TYPES[i].name;
+    }
+    return "";
+  }
+
+  function diseaseLabel(id) {
+    return id ? (id + " " + diseaseNameById(id)) : "";
+  }
+
+  // เดาโรคจากข้อความที่ OCR อ่านได้ (รหัส 2 หลักตรงกับรายการ หรือคำสำคัญ) — เป็นข้อเสนอเท่านั้น ผู้ใช้เลือกแก้เองได้เสมอ
+  var DISEASE_KEYWORDS = [
+    { re: /dhf|เลือดออกรุนแรง/i, id: "26" },
+    { re: /dss|ช็อก/i, id: "27" },
+    { re: /dengue|เด็งกี|เดงกี|ไข้เลือดออก|ns1/i, id: "66" },
+    { re: /hfmd|hand\s*foot|มือ\s*เท้า\s*ปาก/i, id: "71" },
+    { re: /อาหารเป็นพิษ/, id: "03" },
+    { re: /อุจจาระร่วง/, id: "02" },
+    { re: /ไข้หวัดใหญ่|influenza/i, id: "15" },
+    { re: /chikungunya|ชิคุนกุนยา/i, id: "84" },
+    { re: /zika|ซิกา/i, id: "87" },
+    { re: /malaria|มาลาเรีย/i, id: "30" },
+    { re: /leptospirosis|เลปโต/i, id: "43" }
+  ];
+
+  function guessDiseaseId(text) {
+    text = String(text || "");
+    var codes = text.match(/(?:^|\D)(\d{2})(?!\d)/g) || [];
+    for (var i = 0; i < codes.length; i++) {
+      var code = codes[i].replace(/\D/g, "");
+      if (diseaseNameById(code)) return code;
+    }
+    for (var k = 0; k < DISEASE_KEYWORDS.length; k++) {
+      if (DISEASE_KEYWORDS[k].re.test(text)) return DISEASE_KEYWORDS[k].id;
+    }
+    return null;
+  }
+
+  // เลขประจำตัวประชาชน 13 หลัก: ตรวจ checksum (หลักที่ 13) — ใช้เตือนจุดที่ OCR น่าจะอ่านผิด ไม่บล็อกการบันทึก
+  function nationalIdCheckDigit(first12) {
+    var sum = 0;
+    for (var i = 0; i < 12; i++) sum += parseInt(first12.charAt(i), 10) * (13 - i);
+    return String((11 - (sum % 11)) % 10);
+  }
+
+  function isNationalIdChecksumValid(digits) {
+    return /^\d{13}$/.test(digits) && nationalIdCheckDigit(digits.slice(0, 12)) === digits.charAt(12);
+  }
+
+  function formatNationalId(digits) {
+    digits = String(digits || "");
+    if (digits.length !== 13) return digits;
+    return digits.charAt(0) + "-" + digits.slice(1, 5) + "-" + digits.slice(5, 10) + "-" + digits.slice(10, 12) + "-" + digits.charAt(12);
+  }
+
+  // เลขประจำตัวจำลองสำหรับเคสตัวอย่าง (ไม่ใช่เลขจริงของใคร)
+  function mockNationalId(index) {
+    var base = "11000000" + (index + 1 < 10 ? "000" : "00") + (index + 1);
+    base = base.slice(0, 12);
+    return base + nationalIdCheckDigit(base);
+  }
+
+  // พิกัด ละติจูด/ลองจิจูด <-> ตำแหน่งหมุดบนแผนที่จำลอง (กรอบประเทศไทยคร่าวๆ lat 5.5–21, lng 97–106)
+  function mapToCoords(mapX, mapY) {
+    return {
+      lat: Math.round((21 - (mapY / 100) * 15.5) * 10000) / 10000,
+      lng: Math.round((97 + (mapX / 100) * 9) * 10000) / 10000
+    };
+  }
+
+  function coordsToMap(lat, lng) {
+    return {
+      x: Math.max(0, Math.min(100, ((lng - 97) / (106 - 97)) * 100)),
+      y: Math.max(0, Math.min(100, ((21 - lat) / (21 - 5.5)) * 100))
+    };
+  }
+
+  // แยก "ละติจูด, ลองจิจูด" จากข้อความช่องเดียว เช่น "19.8963, 99.8280" — คืน null ถ้ารูปแบบผิด/นอกประเทศไทย
+  function parseCoordinateText(text) {
+    var m = String(text || "").trim().match(/^(-?\d+(?:\.\d+)?)\s*[,;\s]\s*(-?\d+(?:\.\d+)?)$/);
+    if (!m) return null;
+    var lat = parseFloat(m[1]);
+    var lng = parseFloat(m[2]);
+    if (isNaN(lat) || isNaN(lng) || lat < 5.5 || lat > 21 || lng < 97 || lng > 106) return null;
+    return { lat: lat, lng: lng };
+  }
+
+  function composeAddress(c) {
+    return [
+      c.houseNo && "บ้านเลขที่ " + c.houseNo,
+      c.villageNo && "หมู่ " + c.villageNo,
+      c.village,
+      c.subdistrict && "ต." + c.subdistrict,
+      c.district && "อ." + c.district,
+      c.province && "จ." + c.province
+    ].filter(Boolean).join(" ");
+  }
+
+  // หาตำบลจากข้อความที่อยู่ช่องเดียว (ต้นทางส่งให้ทีมสอบสวนโรคตามตำบล) — ตำบลที่ระบบรู้จักก่อน ไม่เจอลองจับ "ต./ตำบล <ชื่อ>"
+  function detectSubdistrict(address) {
+    address = String(address || "");
+    var known = Object.keys(SUBDISTRICT_TEAM_MAP);
+    for (var i = 0; i < known.length; i++) {
+      if (address.indexOf(known[i]) !== -1) return known[i];
+    }
+    var m = address.match(/(?:ต\.|ตำบล)\s*([^\s]+)/);
+    return m ? m[1] : "";
+  }
+
+  /* ---------------------------------------------------------
      Mock cases — OCR-extracted data awaiting human review.
      Case #1 is pre-seeded as already confirmed, to show the
      "downstream" state (notification log + pinned on map) on load.
@@ -179,10 +311,21 @@
   // manual geo-adjustment can happen, so "เลิกทำ" (undo) can restore it
   // exactly. Also seed the editing-mode flag used by the manual
   // lat/long entry flow below.
-  CASES.forEach(function (c) {
+  CASES.forEach(function (c, idx) {
     c._originalMapX = c.mapX;
     c._originalMapY = c.mapY;
     c._editingGeo = false;
+    // โครงข้อมูลตามสเปค OCR Review: เลขประจำตัวประชาชน + ที่อยู่ช่องเดียว + พิกัดช่องเดียว + โรคแบบเลือกรหัส
+    if (!c.nationalId) c.nationalId = mockNationalId(idx);
+    if (!c.address) c.address = composeAddress(c);
+    if (c.latitude === undefined) {
+      var ll = mapToCoords(c.mapX, c.mapY);
+      c.latitude = ll.lat;
+      c.longitude = ll.lng;
+    }
+    c._originalLat = c.latitude;
+    c._originalLng = c.longitude;
+    if (!c.diseaseId) c.diseaseId = guessDiseaseId(c.labResult);
   });
 
   // Notification log — seeded with the log entry for the pre-confirmed case.
@@ -196,10 +339,6 @@
     }
   ];
 
-  // ประเภทโรคติดต่อจริงจาก Firestore (506Types) — เติมโดย case-intake-diagnose.js ผ่าน
-  // CustomEvent "case-intake:disease-types" (FEAT-INTAKE-11) เพราะไฟล์นี้เป็น classic script
-  // ไม่ใช่ module จึงอ่าน Firestore เองไม่ได้ ว่างไว้ก่อนจนกว่าจะโหลดเสร็จ
-  var DISEASE_TYPES = [];
 
   function getCaseById(id) {
     for (var i = 0; i < CASES.length; i++) {
@@ -286,19 +425,19 @@
   /* ---------------------------------------------------------
      Render: OCR review table
      --------------------------------------------------------- */
+  function coordText(c) {
+    return (c.latitude !== undefined && c.latitude !== null && c.longitude !== undefined && c.longitude !== null)
+      ? c.latitude.toFixed(4) + ", " + c.longitude.toFixed(4)
+      : "";
+  }
+
+  // ตำแหน่งพิกัด: ช่องเดียว "ละติจูด, ลองจิจูด" เช่น 19.8963, 99.8280
   function geoCellHtml(c) {
-    // Currently entering/editing manual coordinates — takes priority over
-    // both the "not adjusted yet" and "already adjusted" display states.
     if (c._editingGeo) {
-      var latVal = (c.latitude !== undefined && c.latitude !== null) ? c.latitude : "";
-      var lngVal = (c.longitude !== undefined && c.longitude !== null) ? c.longitude : "";
       return (
         '<div class="geo-cell">' +
-          '<span class="geo-note">กรอกพิกัดจากอุปกรณ์ GPS/แผนที่ภายนอก</span>' +
-          '<div class="edit-field-row">' +
-            '<input type="number" step="0.0001" class="input-inline input-inline-geo" id="geo-lat-input-' + c.id + '" placeholder="13.7563" aria-label="ละติจูด" value="' + escapeHtml(latVal) + '">' +
-            '<input type="number" step="0.0001" class="input-inline input-inline-geo" id="geo-lng-input-' + c.id + '" placeholder="100.5018" aria-label="ลองจิจูด" value="' + escapeHtml(lngVal) + '">' +
-          "</div>" +
+          '<span class="geo-note">ละติจูด, ลองจิจูด เช่น 19.8963, 99.8280</span>' +
+          '<input type="text" class="input-inline" id="geo-coord-input-' + c.id + '" placeholder="19.8963, 99.8280" aria-label="ตำแหน่งพิกัด (ละติจูด, ลองจิจูด)" value="' + escapeHtml(coordText(c)) + '">' +
           '<div class="row-actions">' +
             '<button type="button" class="btn btn-primary btn-sm btn-save-geo" data-id="' + c.id + '">บันทึกพิกัด</button>' +
             '<button type="button" class="btn btn-outline btn-sm btn-cancel-geo" data-id="' + c.id + '">ยกเลิก</button>' +
@@ -307,32 +446,20 @@
       );
     }
 
-    if (c.geoAdjusted) {
-      return (
-        '<div class="geo-cell">' +
-          '<span class="badge badge-adjusted">ปรับพิกัดด้วยมือแล้ว</span>' +
-          '<span class="geo-note">' + c.latitude.toFixed(4) + ", " + c.longitude.toFixed(4) + "</span>" +
-          '<div class="row-actions">' +
-            '<button type="button" class="btn btn-outline btn-sm btn-edit-geo" data-id="' + c.id + '">แก้ไข</button>' +
-            '<button type="button" class="btn btn-outline btn-sm btn-toggle-geo" data-id="' + c.id + '">เลิกทำ</button>' +
-          "</div>" +
-        "</div>"
-      );
-    }
-
-    if (c.geoAccuracy === "high") {
-      return (
-        '<div class="geo-cell">' +
-          '<span class="geo-note">พิกัดแม่นยำสูง</span>' +
-          '<button type="button" class="btn btn-outline btn-sm btn-start-geo" data-id="' + c.id + '">ปรับพิกัดด้วยมือ</button>' +
-        "</div>"
-      );
-    }
+    var text = coordText(c);
+    var badge;
+    if (c.geoAdjusted) badge = '<span class="badge badge-adjusted">ปรับพิกัดด้วยมือแล้ว</span>';
+    else if (!text || c.geoAccuracy === "low") badge = '<span class="badge badge-flag">' + (text ? "พิกัดแม่นยำต่ำ" : "ยังไม่มีพิกัด") + "</span>";
+    else badge = '<span class="geo-note">พิกัดแม่นยำสูง</span>';
 
     return (
       '<div class="geo-cell">' +
-        '<span class="badge badge-flag">พิกัดแม่นยำต่ำ</span>' +
-        '<button type="button" class="btn btn-outline btn-sm btn-start-geo" data-id="' + c.id + '">ปรับพิกัดด้วยมือ</button>' +
+        (text ? '<span class="cell-primary">' + escapeHtml(text) + "</span>" : "") +
+        badge +
+        '<div class="row-actions">' +
+          '<button type="button" class="btn btn-outline btn-sm btn-start-geo" data-id="' + c.id + '">' + (text ? "แก้ไขพิกัด" : "ระบุพิกัด") + "</button>" +
+          (c.geoAdjusted ? '<button type="button" class="btn btn-outline btn-sm btn-toggle-geo" data-id="' + c.id + '">เลิกทำ</button>' : "") +
+        "</div>" +
       "</div>"
     );
   }
@@ -340,10 +467,10 @@
   // ผล "ให้ AI ช่วยตรวจสอบ" (FEAT-INTAKE-10) — สร้าง HTML ของปุ่ม + ผลลัพธ์ (ถ้ามี)
   // ใช้เฉพาะแถว "รอตรวจสอบ" ที่ไม่ได้อยู่ในโหมดแก้ไข
   function assistReviewHtml(c) {
+    // ไม่ส่งเลขประจำตัวประชาชนให้ AI (ข้อมูลอ่อนไหว PDPA)
     var fieldsForAssist = {
-      patientName: c.patientName, hn: c.hn, houseNo: c.houseNo, villageNo: c.villageNo,
-      village: c.village, subdistrict: c.subdistrict, district: c.district, province: c.province,
-      onsetDate: c.onsetDate, labResult: c.labResult
+      patientName: c.patientName, address: c.address, onsetDate: c.onsetDate,
+      disease: diseaseLabel(c.diseaseId), labResult: c.labResult || ""
     };
     var fieldsJson = escapeHtml(JSON.stringify(fieldsForAssist));
     var btnLabel = c._assistLoading ? "กำลังตรวจสอบ..." : "ให้ AI ช่วยตรวจสอบ";
@@ -396,90 +523,59 @@
     if (editing) {
       return (
         '<div class="edit-field-group">' +
-          '<input type="text" class="input-inline" data-field="patientName" value="' + escapeHtml(c.patientName) + '" placeholder="ชื่อ-สกุล" aria-label="ชื่อ-สกุล">' +
-          '<input type="text" class="input-inline" data-field="hn" value="' + escapeHtml(c.hn) + '" placeholder="HN" aria-label="HN">' +
+          '<input type="text" class="input-inline" data-field="patientName" value="' + escapeHtml(c.patientName) + '" placeholder="ชื่อผู้ป่วย" aria-label="ชื่อผู้ป่วย">' +
+          '<input type="text" class="input-inline" data-field="nationalId" inputmode="numeric" maxlength="17" value="' + escapeHtml(formatNationalId(c.nationalId)) + '" placeholder="เลขประจำตัวประชาชน 13 หลัก" aria-label="เลขประจำตัวประชาชน">' +
         "</div>"
       );
     }
-    return '<span class="cell-primary">' + escapeHtml(c.patientName) + '</span><span class="cell-secondary">' + escapeHtml(c.hn) + "</span>";
+    var digits = String(c.nationalId || "").replace(/\D/g, "");
+    var idWarn = "";
+    if (!digits) idWarn = '<span class="badge badge-flag">ยังไม่มีเลขประจำตัว</span>';
+    else if (digits.length !== 13) idWarn = '<span class="badge badge-flag">เลขไม่ครบ 13 หลัก</span>';
+    else if (!isNationalIdChecksumValid(digits)) idWarn = '<span class="badge badge-flag">เลขอาจอ่านผิด (checksum ไม่ผ่าน)</span>';
+    return '<span class="cell-primary">' + escapeHtml(c.patientName) + '</span><span class="cell-secondary">' + escapeHtml(formatNationalId(digits)) + "</span>" + idWarn;
   }
 
   function addressCellHtml(c, editing) {
     if (editing) {
       return (
         '<div class="edit-field-group">' +
-          '<div class="edit-field-row">' +
-            '<input type="text" class="input-inline input-inline-xs" data-field="houseNo" value="' + escapeHtml(c.houseNo) + '" placeholder="เลขที่" aria-label="บ้านเลขที่">' +
-            '<input type="text" class="input-inline input-inline-xs" data-field="villageNo" value="' + escapeHtml(c.villageNo) + '" placeholder="หมู่" aria-label="หมู่ที่">' +
-            '<input type="text" class="input-inline" data-field="village" value="' + escapeHtml(c.village) + '" placeholder="ชื่อหมู่บ้าน" aria-label="ชื่อหมู่บ้าน">' +
-          "</div>" +
-          '<input type="text" class="input-inline" data-field="subdistrict" value="' + escapeHtml(c.subdistrict) + '" placeholder="ตำบล" aria-label="ตำบล">' +
-          '<span class="cell-secondary edit-hint">อ.' + escapeHtml(c.district) + " จ." + escapeHtml(c.province) + " &middot; ทีมรับผิดชอบจะปรับอัตโนมัติเมื่อบันทึก ถ้าตำบลตรงกับพื้นที่ที่ระบบรู้จัก</span>" +
+          '<input type="text" class="input-inline" data-field="address" value="' + escapeHtml(c.address) + '" placeholder="บ้านเลขที่ หมู่ ตำบล อำเภอ จังหวัด" aria-label="ที่อยู่ขณะป่วย">' +
+          '<span class="cell-secondary edit-hint">ทีมรับผิดชอบจะปรับอัตโนมัติเมื่อบันทึก ถ้าตำบลในที่อยู่ตรงกับพื้นที่ที่ระบบรู้จัก</span>' +
         "</div>"
       );
     }
     return (
-      '<span class="cell-primary">บ้านเลขที่ ' + escapeHtml(c.houseNo) + " หมู่ " + escapeHtml(c.villageNo) + " " + escapeHtml(c.village) + "</span>" +
-      '<span class="cell-secondary">ต.' + escapeHtml(c.subdistrict) + " อ." + escapeHtml(c.district) + " จ." + escapeHtml(c.province) + "</span>" +
+      '<span class="cell-primary">' + escapeHtml(c.address) + "</span>" +
       '<span class="cell-secondary">ทีมรับผิดชอบ: ' + TEAMS[c.zone] + "</span>"
     );
   }
 
   function onsetCellHtml(c, editing) {
     if (editing) {
-      return '<input type="text" class="input-inline" data-field="onsetDate" value="' + escapeHtml(c.onsetDate) + '" placeholder="วันป่วย" aria-label="วันป่วย">';
+      return '<input type="text" class="input-inline" data-field="onsetDate" value="' + escapeHtml(c.onsetDate) + '" placeholder="วันที่เริ่มป่วย" aria-label="วันที่เริ่มป่วย">';
     }
     return escapeHtml(c.onsetDate);
   }
 
-  function labResultCellHtml(c, editing) {
-    if (editing) {
-      return '<input type="text" class="input-inline" data-field="labResult" value="' + escapeHtml(c.labResult) + '" placeholder="ผลตรวจ" aria-label="ผลตรวจ">';
-    }
-    return escapeHtml(c.labResult);
-  }
-
-  // ประเภทโรคติดต่อ (FEAT-INTAKE-11) — dropdown ผูกกับ 506Types จริง + ปุ่ม "ให้ AI ช่วยจัด"
-  // ที่ส่งค่า "ผลตรวจ" ของแถวนี้ไปให้ suggestDiseaseType วิเคราะห์ เป็น advisory เท่านั้น
-  // เจ้าหน้าที่เลือก/แก้ไข dropdown เองได้เสมอ ไม่ persist ลง Firestore (Case Intake ยังไม่มี
-  // backing จริงสำหรับเคส — ดู FEAT-INTAKE-11 ใน FEATURE-LIST.md)
+  // โรค — dropdown เลือกโรคตามรหัส รง.506 (เช่น 66 ไข้เด็งกี่ (Dengue fever)) เจ้าหน้าที่เลือก/แก้ได้เสมอ
+  // ถ้าเดาจากข้อความ OCR ได้จะเลือกให้ก่อนพร้อมข้อความเตือนให้ตรวจสอบ (ไม่ persist ลง Firestore)
   function diseaseCellHtml(c) {
     if (c.status === "confirmed") {
-      return '<span class="cell-primary">' + (c.diseaseName ? escapeHtml(c.diseaseName) : "-") + "</span>";
+      return '<span class="cell-primary">' + (c.diseaseId ? escapeHtml(diseaseLabel(c.diseaseId)) : "-") + "</span>";
     }
 
-    var optionsHtml = '<option value="">-- เลือกประเภทโรคติดต่อ --</option>' +
+    var optionsHtml = '<option value="">-- เลือกโรค --</option>' +
       DISEASE_TYPES.map(function (t) {
         var selected = (c.diseaseId === t.id) ? " selected" : "";
-        return '<option value="' + escapeHtml(t.id) + '"' + selected + '>' + escapeHtml(t.name) + "</option>";
+        return '<option value="' + escapeHtml(t.id) + '"' + selected + '>' + escapeHtml(t.id + " " + t.name) + "</option>";
       }).join("");
 
-    var selectHtml =
-      '<select class="input-inline select-disease-type" data-id="' + c.id + '"' + (DISEASE_TYPES.length === 0 ? " disabled" : "") + ">" +
-        optionsHtml +
-      "</select>";
+    var hint = c._diseaseFromOcr && c.diseaseId
+      ? '<span class="cell-secondary edit-hint">เลือกจากข้อความในเอกสาร โปรดตรวจสอบ</span>'
+      : "";
 
-    var diagnoseDisabled = c._diagnoseLoading || !c.labResult;
-    var btnLabel = c._diagnoseLoading ? "กำลังวิเคราะห์..." : "ให้ AI ช่วยจัด";
-    var btnHtml =
-      '<button type="button" class="btn btn-outline btn-sm btn-ai-diagnose" data-id="' + c.id + '" data-text="' + escapeHtml(c.labResult || "") + '"' +
-      (diagnoseDisabled ? " disabled" : "") + ">" + btnLabel + "</button>";
-
-    var resultHtml = "";
-    if (c._diagnoseError) {
-      resultHtml = '<div class="assist-result assist-result-error">' + escapeHtml(c._diagnoseError) + "</div>";
-    } else if (c.aiSuggestion) {
-      if (c.aiSuggestion.matched) {
-        // ข้อความให้ตรงกับ label มาตรฐานเดียวกับ new-506-request.js (FEAT-ANALYSIS-08)
-        resultHtml = '<div class="assist-result assist-result-ok">' + ICON_CHECK + "ข้อเสนอจาก AI — โปรดตรวจสอบก่อนยืนยัน: " + escapeHtml(c.aiSuggestion.diseaseName) +
-          (c.aiSuggestion.reason ? " (" + escapeHtml(c.aiSuggestion.reason) + ")" : "") + "</div>";
-      } else {
-        resultHtml = '<div class="assist-result assist-result-concern">AI จัดหมวดหมู่ให้ไม่ได้' +
-          (c.aiSuggestion.reason ? ": " + escapeHtml(c.aiSuggestion.reason) : "") + " กรุณาเลือกเอง</div>";
-      }
-    }
-
-    return '<div class="geo-cell">' + selectHtml + btnHtml + "</div>" + resultHtml;
+    return '<div class="geo-cell"><select class="input-inline select-disease-type" data-id="' + c.id + '">' + optionsHtml + "</select>" + hint + "</div>";
   }
 
   function renderOCRTable() {
@@ -493,14 +589,13 @@
       tr.setAttribute("data-row-id", c.id);
       tr.innerHTML =
         "<td>" +
-          '<a class="file-link" href="#" data-file="' + c.fileName + '" title="เปิดไฟล์ต้นฉบับใน Google Drive (จำลอง)">' +
+          '<a class="file-link" href="#" data-case-id="' + c.id + '" data-file="' + c.fileName + '" title="' + (c._fileUrl ? "เปิดไฟล์ต้นฉบับที่อัปโหลด (แท็บใหม่)" : "เปิดไฟล์ต้นฉบับใน Google Drive (จำลอง)") + '">' +
             ICON_FILE + "ไฟล์ต้นฉบับ" +
           "</a>" +
         "</td>" +
         "<td>" + nameCellHtml(c, editing) + "</td>" +
         "<td>" + addressCellHtml(c, editing) + "</td>" +
         "<td>" + onsetCellHtml(c, editing) + "</td>" +
-        "<td>" + labResultCellHtml(c, editing) + "</td>" +
         "<td>" + diseaseCellHtml(c) + "</td>" +
         "<td>" + geoCellHtml(c) + "</td>" +
         "<td>" +
@@ -594,7 +689,7 @@
       parts.push('<circle cx="' + px + '" cy="' + py + '" r="6" fill="' + color + '"></circle>');
       parts.push('<text x="' + px + '" y="' + (py - 14) + '" text-anchor="middle" font-size="11" font-weight="600" fill="#33291F" font-family="Inter, system-ui, sans-serif">' + c.patientName.split(" ")[0] + "</text>");
       parts.push('<text x="' + px + '" y="' + (py + 22) + '" text-anchor="middle" font-size="10" fill="#6E6355" font-family="Inter, system-ui, sans-serif">ต.' + c.subdistrict + "</text>");
-      parts.push("<title>" + c.patientName + " (" + c.hn + ") — ต." + c.subdistrict + " อ." + c.district + " จ." + c.province + " · " + TEAMS[c.zone] + " · " + statusLabel + "</title>");
+      parts.push("<title>" + c.patientName + " — " + c.address + " · " + TEAMS[c.zone] + " · " + statusLabel + "</title>");
       parts.push("</g>");
     });
 
@@ -615,6 +710,18 @@
   function confirmCase(id) {
     var c = getCaseById(id);
     if (!c || c.status === "confirmed") return;
+
+    // ต้องกรอกช่องหลักให้ครบก่อนยืนยัน (ตรงกับ API-SPEC.md หัวข้อ 4: ยืนยันเคสที่ field จำเป็นว่าง → ปฏิเสธ)
+    var missing = [];
+    if (!String(c.patientName || "").trim()) missing.push("ชื่อผู้ป่วย");
+    if (!/^\d{13}$/.test(String(c.nationalId || "").replace(/\D/g, ""))) missing.push("เลขประจำตัวประชาชน (13 หลัก)");
+    if (!String(c.address || "").trim()) missing.push("ที่อยู่ขณะป่วย");
+    if (!String(c.onsetDate || "").trim()) missing.push("วันที่เริ่มป่วย");
+    if (!c.diseaseId) missing.push("โรค");
+    if (missing.length) {
+      alert("ยังยืนยันไม่ได้ กรุณากรอก/เลือกให้ครบ: " + missing.join(", "));
+      return;
+    }
 
     c.status = "confirmed";
     var now = new Date();
@@ -638,8 +745,8 @@
     var c = getCaseById(id);
     if (!c) return;
     c.geoAdjusted = false;
-    c.latitude = undefined;
-    c.longitude = undefined;
+    c.latitude = c._originalLat;
+    c.longitude = c._originalLng;
     c.mapX = c._originalMapX;
     c.mapY = c._originalMapY;
     c._editingGeo = false;
@@ -670,24 +777,21 @@
   // pin's SVG position (c.mapX/c.mapY) by normalizing lat/long within a
   // rough Thailand bounding box (lat 5.5–21, lng 97–106), clamped to 0-100
   // so the pin can never render outside the mock map's SVG viewport.
-  function saveGeoCoordinates(id, lat, lng) {
+  function saveGeoCoordinates(id, text) {
     var c = getCaseById(id);
     if (!c) return;
 
-    lat = parseFloat(lat);
-    lng = parseFloat(lng);
-
-    if (isNaN(lat) || isNaN(lng) || lat < 5.5 || lat > 21 || lng < 97 || lng > 106) {
-      alert("กรุณากรอกละติจูดในช่วง 5.5–21 และลองจิจูดในช่วง 97–106 (พิกัดภายในประเทศไทย)");
+    var parsed = parseCoordinateText(text);
+    if (!parsed) {
+      alert("กรุณากรอกพิกัดเป็น ละติจูด, ลองจิจูด ช่องเดียว เช่น 19.8963, 99.8280 (ต้องอยู่ในประเทศไทย: ละติจูด 5.5–21, ลองจิจูด 97–106)");
       return;
     }
 
-    c.latitude = lat;
-    c.longitude = lng;
-    var mapX = ((lng - 97) / (106 - 97)) * 100;
-    var mapY = ((21 - lat) / (21 - 5.5)) * 100;
-    c.mapX = Math.max(0, Math.min(100, mapX));
-    c.mapY = Math.max(0, Math.min(100, mapY));
+    c.latitude = parsed.lat;
+    c.longitude = parsed.lng;
+    var pos = coordsToMap(parsed.lat, parsed.lng);
+    c.mapX = pos.x;
+    c.mapY = pos.y;
     c.geoAdjusted = true;
     c._editingGeo = false;
 
@@ -702,9 +806,12 @@
   // ไม่ได้คืนพิกัด ต้องพึ่ง fallback "ปรับพิกัดด้วยมือ" ที่มีอยู่แล้ว
   function addCaseFromOCR(detail) {
     var fields = detail.fields || {};
-    var subdistrict = fields.subdistrict || "";
+    var address = fields.address || composeAddress(fields);
+    var subdistrict = detectSubdistrict(address) || fields.subdistrict || "";
     var nextId = CASES.reduce(function (max, c) { return Math.max(max, c.id); }, 0) + 1;
     var now = new Date();
+    var coords = parseCoordinateText(fields.coordinates);
+    var diseaseId = guessDiseaseId(fields.labResult);
 
     var newCase = {
       id: nextId,
@@ -713,26 +820,33 @@
       fileSize: detail.fileSize,
       uploadedLabel: formatThaiDateTime(now),
       patientName: fields.patientName || "",
+      nationalId: String(fields.nationalId || "").replace(/\D/g, ""),
       hn: fields.hn || "",
-      houseNo: fields.houseNo || "",
-      villageNo: fields.villageNo || "",
-      village: fields.village || "",
+      address: address,
       subdistrict: subdistrict,
-      district: fields.district || "",
-      province: fields.province || "",
       onsetDate: fields.onsetDate || "",
       labResult: fields.labResult || "",
-      diseaseId: null,
-      diseaseName: null,
+      diseaseId: diseaseId,
+      _diseaseFromOcr: !!diseaseId,
       // ตำบลไม่ตรงกับพื้นที่ที่ระบบรู้จัก (mock) -> เข้าทีมสอบสวนโรค เขต 1 เป็นค่าเริ่มต้นไปก่อน
       zone: SUBDISTRICT_TEAM_MAP.hasOwnProperty(subdistrict) ? SUBDISTRICT_TEAM_MAP[subdistrict] : 1,
-      geoAccuracy: "low",
+      geoAccuracy: coords ? "high" : "low",
       geoAdjusted: false,
       status: "pending",
       mapX: 50, mapY: 50
     };
+    if (coords) {
+      var pos = coordsToMap(coords.lat, coords.lng);
+      newCase.latitude = coords.lat;
+      newCase.longitude = coords.lng;
+      newCase.mapX = pos.x;
+      newCase.mapY = pos.y;
+    }
+    newCase._fileUrl = detail.file ? URL.createObjectURL(detail.file) : null;
     newCase._originalMapX = newCase.mapX;
     newCase._originalMapY = newCase.mapY;
+    newCase._originalLat = newCase.latitude;
+    newCase._originalLng = newCase.longitude;
     newCase._editingGeo = false;
 
     CASES.unshift(newCase);
@@ -758,16 +872,16 @@
     if (!c || !rowEl) return;
 
     var inputs = rowEl.querySelectorAll("[data-field]");
-    var newSubdistrict = null;
     inputs.forEach(function (input) {
       var field = input.getAttribute("data-field");
       var value = input.value.trim();
-      c[field] = value;
-      if (field === "subdistrict") newSubdistrict = value;
+      c[field] = field === "nationalId" ? value.replace(/\D/g, "") : value;
     });
 
-    // Auto-route: if the corrected subdistrict matches a known area, reassign
+    // Auto-route: if the subdistrict in the corrected address matches a known area, reassign
     // the responsible team. Unknown subdistrict values keep the current team.
+    var newSubdistrict = detectSubdistrict(c.address);
+    if (newSubdistrict) c.subdistrict = newSubdistrict;
     if (newSubdistrict && SUBDISTRICT_TEAM_MAP.hasOwnProperty(newSubdistrict)) {
       c.zone = SUBDISTRICT_TEAM_MAP[newSubdistrict];
     }
@@ -825,14 +939,15 @@
       var saveGeoBtn = e.target.closest(".btn-save-geo");
       if (saveGeoBtn) {
         var geoId = parseInt(saveGeoBtn.getAttribute("data-id"), 10);
-        var latInput = document.getElementById("geo-lat-input-" + geoId);
-        var lngInput = document.getElementById("geo-lng-input-" + geoId);
-        saveGeoCoordinates(geoId, latInput ? latInput.value : "", lngInput ? lngInput.value : "");
+        var coordInput = document.getElementById("geo-coord-input-" + geoId);
+        saveGeoCoordinates(geoId, coordInput ? coordInput.value : "");
         return;
       }
       var fileLink = e.target.closest(".file-link");
       if (fileLink) {
         e.preventDefault();
+        var fileCase = getCaseById(parseInt(fileLink.getAttribute("data-case-id"), 10));
+        if (fileCase && fileCase._fileUrl) window.open(fileCase._fileUrl, "_blank", "noopener");
       }
     });
 
@@ -843,9 +958,9 @@
       if (!select) return;
       var c = getCaseById(parseInt(select.getAttribute("data-id"), 10));
       if (!c) return;
-      var option = select.options[select.selectedIndex];
       c.diseaseId = select.value || null;
-      c.diseaseName = select.value ? option.textContent : null;
+      c.diseaseName = select.value ? diseaseNameById(select.value) : null;
+      c._diseaseFromOcr = false;
     });
 
     // Dropzone — mock drag/drop visual feedback only (no real file handling)
@@ -888,10 +1003,7 @@
       renderOCRTable();
     });
     // รายชื่อโรคติดต่อจริงจาก 506Types (FEAT-INTAKE-11) — มาจาก case-intake-diagnose.js
-    document.addEventListener("case-intake:disease-types", function (e) {
-      DISEASE_TYPES = e.detail.types || [];
-      renderOCRTable();
-    });
+    // (ไม่ใช้รายการโรคจาก Firestore 506Types อีกแล้ว — ใช้รหัสโรคตามแบบ รง.506 ที่กำหนดไว้ใน DISEASE_TYPES)
     // ผล "ให้ AI ช่วยจัด" ประเภทโรคติดต่อ (FEAT-INTAKE-11) — matched=true เติม dropdown ให้
     // อัตโนมัติ แต่ยังแก้ไขเองได้เสมอก่อนกดยืนยัน (advisory เท่านั้น)
     document.addEventListener("case-intake:diagnose-result", function (e) {

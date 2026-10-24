@@ -46,6 +46,7 @@ function init() {
       document.dispatchEvent(new CustomEvent("case-intake:ocr-result", {
         detail: {
           fields: result.fields,
+          file: file,
           fileName: file.name,
           fileType: file.type === "application/pdf" ? "PDF" : (file.type === "image/png" ? "PNG" : "JPEG"),
           fileSize: Math.max(1, Math.round(file.size / 1024)) + " KB"

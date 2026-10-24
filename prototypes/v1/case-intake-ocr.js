@@ -15,7 +15,9 @@ const NUM = "[\\d\\u0E50-\\u0E59]";
 // label -> ช่องข้อมูล
 const LABELS = [
   { key: "patientName", words: ["ชื่อ-สกุล", "ชื่อ-นามสกุล", "ชื่อผู้ป่วย", "ชื่อสกุล", "ชื่อ"] },
+  { key: "nationalId", words: ["เลขประจำตัวประชาชน", "เลขบัตรประชาชน", "เลขประชาชน", "บัตรประชาชน", "CID"] },
   { key: "hn", words: ["HN", "H.N.", "เลขที่ผู้ป่วย", "เลขประจำตัวผู้ป่วย"] },
+  { key: "address", words: ["ที่อยู่ขณะป่วย", "ที่อยู่ขณะเริ่มป่วย", "ที่อยู่ปัจจุบัน", "ที่อยู่", "ที่พักอาศัย"] },
   { key: "houseNo", words: ["บ้านเลขที่"] },
   { key: "villageNo", words: ["หมู่ที่", "หมู่"] },
   { key: "village", words: ["หมู่บ้าน", "ชุมชน", "บ้าน"] },
@@ -82,9 +84,10 @@ export function parseCaseReportText(rawText) {
   // Tesseract ไทยมักคืนสระอำเป็น นิคหิต+สระา (U+0E4D U+0E32) แยกตัว — รวมกลับเป็นสระอำ (U+0E33)
   const text = String(rawText || "").replace(/\r/g, "").replace(/\u0E4D\u0E32/g, "\u0E33");
   const fields = {
-    patientName: "", hn: "", houseNo: "", villageNo: "", village: "",
-    subdistrict: "", district: "", province: "", onsetDate: "", labResult: ""
+    patientName: "", nationalId: "", hn: "", address: "", houseNo: "", villageNo: "", village: "",
+    subdistrict: "", district: "", province: "", onsetDate: "", labResult: "", coordinates: ""
   };
+  let addressOpen = false; // บรรทัดถัดไปที่ไม่มี label ถือเป็นส่วนต่อของที่อยู่
 
   text.split("\n").forEach(function (line) {
     if (!line.trim()) return;
@@ -110,18 +113,47 @@ export function parseCaseReportText(rawText) {
       if (last && h.start < last.end) return;
       picked.push(h);
     });
+    if (picked.length === 0) {
+      if (addressOpen && fields.address) fields.address = cleanValue(fields.address + " " + line);
+      return;
+    }
+    addressOpen = false;
     picked.forEach(function (h, i) {
       if (fields[h.key]) return; // เจอ label เดิมซ้ำ ใช้ค่าแรก
-      const stop = i + 1 < picked.length ? picked[i + 1].start : line.length;
+      // ที่อยู่เอาทั้งบรรทัด (รวม ต./อ./จ. ที่อยู่ในบรรทัดเดียวกัน)
+      const stop = h.key === "address" ? line.length : (i + 1 < picked.length ? picked[i + 1].start : line.length);
       let value = cleanValue(line.slice(h.end, stop));
       if (value && h.key === "village" && h.word === "บ้าน") value = "บ้าน" + value;
       if (value) fields[h.key] = value;
+      if (h.key === "address" && value) addressOpen = true;
     });
   });
 
   fields.hn = (fields.hn.match(/[A-Za-z0-9\u0E50-\u0E59][A-Za-z0-9\u0E50-\u0E59\-\/.]*/) || [""])[0].replace(/[.\-\/]+$/, "");
   fields.villageNo = (fields.villageNo.match(new RegExp(NUM + "+")) || [""])[0];
   fields.houseNo = (fields.houseNo.match(new RegExp(NUM + "[\\d\\u0E50-\\u0E59\\/\\-]*")) || [fields.houseNo])[0];
+
+  // เลขประจำตัวประชาชน 13 หลัก — ใช้ค่าจาก label ก่อน ไม่เจอค่อยหาจากทั้งข้อความ (รูปแบบ x-xxxx-xxxxx-xx-x)
+  const digitsText = toArabicDigits(text);
+  const idFromLabel = toArabicDigits(fields.nationalId).replace(/\D/g, "");
+  const idMatch = digitsText.match(/(?<!\d)\d[\s-]?\d{4}[\s-]?\d{5}[\s-]?\d{2}[\s-]?\d(?!\d)/);
+  fields.nationalId = idFromLabel.length === 13 ? idFromLabel : (idMatch ? idMatch[0].replace(/\D/g, "") : idFromLabel);
+
+  // พิกัด "ละติจูด, ลองจิจูด" ถ้ามีในเอกสาร (เช่น 19.8963, 99.8280) — ฟอร์ม รง.506 มาตรฐานไม่มีช่องนี้ ส่วนใหญ่จึงเว้นว่างให้กรอกเอง
+  const coordMatch = digitsText.match(/(?<!\d)(\d{1,2}\.\d{3,})\s*[,;\/]?\s*(\d{2,3}\.\d{3,})(?!\d)/);
+  fields.coordinates = coordMatch ? coordMatch[1] + ", " + coordMatch[2] : "";
+
+  // ที่อยู่: ถ้าไม่เจอ label "ที่อยู่" ให้ประกอบจากช่อง บ้านเลขที่/หมู่/หมู่บ้าน/ตำบล/อำเภอ/จังหวัด
+  if (!fields.address) {
+    fields.address = [
+      fields.houseNo && "บ้านเลขที่ " + fields.houseNo,
+      fields.villageNo && "หมู่ " + fields.villageNo,
+      fields.village,
+      fields.subdistrict && "ต." + fields.subdistrict,
+      fields.district && "อ." + fields.district,
+      fields.province && "จ." + fields.province
+    ].filter(Boolean).join(" ");
+  }
 
   // วันที่เริ่มป่วย: รูปแบบ 15/08/2569 หรือ 19 ส.ค. 2569 — คงรูปแบบตามเอกสาร แปลงเฉพาะเลขไทยเป็นเลขอารบิก
   const dateRe = new RegExp(NUM + "{1,2}\\s*(?:[\\/\\-.]\\s*" + NUM + "{1,2}\\s*[\\/\\-.]|\\s*[" + THAI + ".]{2,12}\\s*)\\s*" + NUM + "{2,4}");
