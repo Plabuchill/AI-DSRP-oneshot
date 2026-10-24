@@ -811,7 +811,8 @@
     var nextId = CASES.reduce(function (max, c) { return Math.max(max, c.id); }, 0) + 1;
     var now = new Date();
     var coords = parseCoordinateText(fields.coordinates);
-    var diseaseId = guessDiseaseId(fields.labResult);
+    // AI อ่านรหัสโรคจากช่องที่ติ๊กมาให้โดยตรง (ถ้ามีและอยู่ในรายการ) ไม่งั้นเดาจากข้อความ OCR
+    var diseaseId = (fields.diseaseId && diseaseNameById(fields.diseaseId)) ? fields.diseaseId : guessDiseaseId(fields.labResult);
 
     var newCase = {
       id: nextId,

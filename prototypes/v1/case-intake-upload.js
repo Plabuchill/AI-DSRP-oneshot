@@ -6,15 +6,51 @@
 // (ตาม pattern เดียวกับ case-analysis.js + case-analysis-506.js)
 
 import { extractCaseReportLocal } from "./case-intake-ocr.js";
+import { AI_OCR_URL } from "./ocr-config.js";
+import { auth } from "./firebase-init.js";
 
 const MAX_FILE_BYTES = 7 * 1024 * 1024;
 const ALLOWED_MIME_TYPES = ["application/pdf", "image/jpeg", "image/png"];
+
+function fileToBase64(file) {
+  return new Promise(function (resolve, reject) {
+    const reader = new FileReader();
+    reader.onload = function () { resolve(String(reader.result).split(",")[1] || ""); };
+    reader.onerror = function () { reject(new Error("อ่านไฟล์ไม่ได้")); };
+    reader.readAsDataURL(file);
+  });
+}
+
+// ส่งไฟล์ไปตัวกลาง AI (Cloudflare Worker -> Gemini) — ผู้ใช้ต้องล็อกอิน และติ๊กยอมรับเองทุกครั้ง
+async function extractCaseReportAI(file) {
+  const user = auth.currentUser;
+  if (!user) throw new Error("ต้องเข้าสู่ระบบก่อนใช้ AI อ่านลายมือ");
+  const token = await user.getIdToken();
+  const res = await fetch(AI_OCR_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
+    body: JSON.stringify({ mimeType: file.type, data: await fileToBase64(file) })
+  });
+  const body = await res.json().catch(function () { return {}; });
+  if (!res.ok) throw new Error(body.error || ("บริการ AI ตอบกลับผิดพลาด (" + res.status + ")"));
+  const f = body.fields || {};
+  return {
+    fields: {
+      patientName: f.patientName || "", nationalId: f.nationalId || "", hn: "", address: f.address || "",
+      houseNo: "", villageNo: "", village: "", subdistrict: "", district: "", province: "",
+      onsetDate: f.onsetDate || "", labResult: "", coordinates: f.coordinates || "", diseaseId: f.diseaseId || ""
+    }
+  };
+}
 
 function init() {
   const selectBtn = document.getElementById("btn-select-file");
   const fileInput = document.getElementById("file-input");
   const dropzone = document.getElementById("dropzone");
   const statusEl = document.getElementById("upload-ocr-status");
+  const aiOption = document.getElementById("ai-ocr-option");
+  const aiCheckbox = document.getElementById("use-ai-ocr");
+  if (aiOption && AI_OCR_URL) aiOption.style.display = "block"; // ไม่ตั้ง URL = ซ่อนตัวเลือก ใช้ OCR ในเครื่องอย่างเดียว
   if (!selectBtn || !fileInput) return; // หน้าอื่นไม่มี element นี้
 
   function setStatus(message, isError) {
@@ -35,14 +71,25 @@ function init() {
     }
 
     selectBtn.disabled = true;
-    setStatus("กำลังเริ่มอ่านเอกสารด้วย OCR...", false);
 
     try {
-      const result = await extractCaseReportLocal(file, function (message) {
-        setStatus(message, false);
-      });
+      let result = null; let aiNote = "";
+      if (AI_OCR_URL && aiCheckbox && aiCheckbox.checked) {
+        setStatus("กำลังส่งเอกสารให้ AI อ่าน (อาจใช้เวลาสักครู่)...", false);
+        try {
+          result = await extractCaseReportAI(file);
+        } catch (aiErr) {
+          aiNote = "AI ใช้ไม่ได้ (" + (aiErr && aiErr.message ? aiErr.message : "เกิดข้อผิดพลาด") + ") — ใช้ OCR ในเครื่องแทน (ลายมืออาจอ่านไม่ได้)"; setStatus(aiNote, true);
+        }
+      }
+      if (!result) {
+        if (!(aiCheckbox && aiCheckbox.checked)) setStatus("กำลังเริ่มอ่านเอกสารด้วย OCR...", false);
+        result = await extractCaseReportLocal(file, function (message) {
+          setStatus(message, false);
+        });
+      }
 
-      setStatus("", false);
+      setStatus(aiNote, !!aiNote);
       document.dispatchEvent(new CustomEvent("case-intake:ocr-result", {
         detail: {
           fields: result.fields,

@@ -111,6 +111,10 @@
         <p class="dropzone-hint">หรือคลิกเพื่อเลือกไฟล์จากเครื่อง (PDF, JPEG, PNG ขนาดไม่เกิน 7MB) — ระบบอ่านข้อความจากเอกสารด้วย OCR ในเบราว์เซอร์ของคุณเอง (ไฟล์ไม่ถูกส่งออกนอกเครื่อง; ครั้งแรกต้องมีอินเทอร์เน็ตเพื่อโหลดโมดูลภาษาไทย) ลายมืออาจอ่านไม่แม่น เจ้าหน้าที่ต้องตรวจสอบ/แก้ไขก่อนยืนยันทุกครั้ง (human-in-the-loop) ไฟล์ต้นฉบับจะถูกเก็บคู่กับแถวข้อมูลใน Google Drive โดยอัตโนมัติในเฟสถัดไป (ยังไม่เชื่อมต่อจริงรอบนี้)</p>
         <button type="button" class="btn btn-outline" id="btn-select-file">เลือกไฟล์</button>
         <input type="file" id="file-input" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png" hidden>
+        <label id="ai-ocr-option" class="body-secondary" style="display:none;margin-top:12px;text-align:left;max-width:640px;margin-left:auto;margin-right:auto;">
+          <input type="checkbox" id="use-ai-ocr">
+          ใช้ AI อ่านลายมือ (Google Gemini ฟรี) — <strong>ภาพเอกสารจะถูกส่งออกไปยังบริการภายนอก</strong> และ Google อาจนำข้อมูลไปพัฒนาผลิตภัณฑ์ในระดับฟรี ใช้กับเอกสารทดสอบ/ข้อมูลสมมุติเท่านั้น ห้ามใช้กับข้อมูลผู้ป่วยจริง
+        </label>
         <p id="upload-ocr-status" class="body-secondary" style="display:none;margin-top:8px;"></p>
       </div>
 

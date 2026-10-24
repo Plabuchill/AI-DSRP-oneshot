@@ -1,0 +1,13 @@
+name = "ai-dsrp-ocr-proxy"
+main = "src/index.js"
+compatibility_date = "2026-01-01"
+
+[vars]
+# origin ของเว็บที่อนุญาตให้เรียก (คั่นด้วย , ) — เพิ่ม http://localhost:8743 ได้ถ้าจะทดสอบในเครื่อง
+ALLOWED_ORIGINS = "https://ai-dsrp.web.app,https://ai-dsrp.firebaseapp.com"
+# Firebase web API key ของโปรเจกต์ (เป็นค่าสาธารณะ ตัวเดียวกับใน prototypes/v1/firebase-init.js) ใช้ตรวจ ID token
+FIREBASE_API_KEY = "AIzaSyCURDU09t4XimMJJS3-2tMJ03R_UG3eHHA"
+# โมเดล Gemini ที่ใช้ — ตรวจรายชื่อรุ่นที่ฟรีและรับภาพได้ใน Google AI Studio แล้วเปลี่ยนที่นี่ถ้าจำเป็น
+GEMINI_MODEL = "gemini-flash-latest"
+
+# GEMINI_API_KEY เป็น secret ห้ามใส่ในไฟล์นี้ ตั้งด้วย: npx wrangler secret put GEMINI_API_KEY
