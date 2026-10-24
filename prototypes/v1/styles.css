@@ -788,6 +788,12 @@ main.content-wrap {
   color: var(--color-primary);
 }
 
+/* ปุ่ม action อันตราย (ลบ) — ใช้สี danger ได้ตาม DESIGN.md ข้อ 4.2 */
+.btn-outline.btn-delete-row {
+  border-color: var(--color-danger);
+  color: var(--color-danger);
+}
+
 /* ---------------------------------------------------------
    Footer
    --------------------------------------------------------- */
@@ -2563,33 +2569,6 @@ main.content-wrap {
 
 .upload-ocr-status-error {
   color: var(--color-danger);
-}
-
-.assist-result {
-  margin-top: 6px;
-  padding: 6px 8px;
-  border-radius: var(--radius-control);
-  font-size: var(--fs-small);
-}
-
-.assist-result ul {
-  margin: 4px 0 0;
-  padding-left: 18px;
-}
-
-.assist-result-ok {
-  color: var(--color-success);
-  background: var(--color-success-bg);
-}
-
-.assist-result-concern {
-  color: var(--color-warning);
-  background: var(--color-warning-bg);
-}
-
-.assist-result-error {
-  color: var(--color-danger);
-  background: var(--color-danger-bg);
 }
 
 .ai-suggest-row {

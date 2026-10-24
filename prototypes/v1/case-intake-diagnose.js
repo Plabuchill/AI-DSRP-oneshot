@@ -2,7 +2,7 @@
 // "suggestDiseaseType" ตัวเดียวกับที่ใช้ในหน้า รง.506 (FEAT-ANALYSIS-08) โดยส่ง clinicalText
 // (ค่าช่อง "ผลตรวจ" ของแถวนั้น) แทน title/reason — ฟังก์ชันฝั่ง server ดึงรายชื่อ 506Types จริง
 // จาก Firestore เองและตรวจซ้ำผลลัพธ์เสมอ ไม่เชื่อค่าที่โมเดลเลือกมาตรงๆ
-// เป็น advisory เท่านั้น (human-in-the-loop เหมือน case-intake-assist.js) — เติมลง dropdown
+// เป็น advisory เท่านั้น (human-in-the-loop) — เติมลง dropdown
 // "ประเภทโรคติดต่อ" ให้อัตโนมัติเมื่อจัดหมวดหมู่ได้ แต่เจ้าหน้าที่แก้ไขเองได้เสมอก่อนยืนยัน
 // ผลลัพธ์ส่งกลับให้ case-intake.js ผ่าน CustomEvent (ตาม pattern เดียวกับไฟล์อื่นในกลุ่มนี้)
 
@@ -27,7 +27,7 @@ function init() {
 
   // 506Types → ส่งรายชื่อโรคติดต่อจริงให้ case-intake.js เติม dropdown ต่อแถว
   // (case-intake.js เป็น classic script ไม่ใช่ module จึงอ่าน Firestore เองไม่ได้ — ดู
-  // case-intake-upload.js/case-intake-assist.js สำหรับ pattern เดียวกันนี้)
+  // case-intake-upload.js สำหรับ pattern เดียวกันนี้)
   onSnapshot(
     collection(db, "506Types"),
     function (snapshot) {

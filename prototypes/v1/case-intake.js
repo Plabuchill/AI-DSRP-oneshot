@@ -464,37 +464,6 @@
     );
   }
 
-  // ผล "ให้ AI ช่วยตรวจสอบ" (FEAT-INTAKE-10) — สร้าง HTML ของปุ่ม + ผลลัพธ์ (ถ้ามี)
-  // ใช้เฉพาะแถว "รอตรวจสอบ" ที่ไม่ได้อยู่ในโหมดแก้ไข
-  function assistReviewHtml(c) {
-    // ไม่ส่งเลขประจำตัวประชาชนให้ AI (ข้อมูลอ่อนไหว PDPA)
-    var fieldsForAssist = {
-      patientName: c.patientName, address: c.address, onsetDate: c.onsetDate,
-      disease: diseaseLabel(c.diseaseId), labResult: c.labResult || ""
-    };
-    var fieldsJson = escapeHtml(JSON.stringify(fieldsForAssist));
-    var btnLabel = c._assistLoading ? "กำลังตรวจสอบ..." : "ให้ AI ช่วยตรวจสอบ";
-    var btnHtml =
-      '<button type="button" class="btn btn-outline btn-sm btn-assist-review" data-id="' + c.id + '" data-fields="' + fieldsJson + '"' +
-      (c._assistLoading ? " disabled" : "") + ">" + btnLabel + "</button>";
-
-    var resultHtml = "";
-    if (c._assistResult) {
-      if (c._assistResult.error) {
-        resultHtml = '<div class="assist-result assist-result-error">' + escapeHtml(c._assistResult.error) + "</div>";
-      } else if (c._assistResult.status === "ok") {
-        resultHtml = '<div class="assist-result assist-result-ok">' + ICON_CHECK + "AI: ข้อมูลดูสมเหตุสมผล</div>";
-      } else {
-        var notesHtml = (c._assistResult.notes || []).map(function (n) {
-          return "<li><strong>" + escapeHtml(n.field) + ":</strong> " + escapeHtml(n.issue) + "</li>";
-        }).join("");
-        resultHtml = '<div class="assist-result assist-result-concern">AI พบจุดที่น่าสงสัย:<ul>' + notesHtml + "</ul></div>";
-      }
-    }
-
-    return '<div class="row-actions" style="margin-top:6px;">' + btnHtml + "</div>" + resultHtml;
-  }
-
   function actionCellHtml(c, editing) {
     if (c.status === "confirmed") {
       return '<span class="confirmed-check">' + ICON_CHECK + "ยืนยันแล้ว</span>";
@@ -511,8 +480,8 @@
       '<div class="row-actions">' +
         '<button type="button" class="btn btn-outline btn-sm btn-edit-row" data-id="' + c.id + '">' + ICON_EDIT + "แก้ไข</button>" +
         '<button type="button" class="btn btn-primary btn-sm btn-confirm" data-id="' + c.id + '">ยืนยัน</button>' +
-      "</div>" +
-      assistReviewHtml(c)
+        '<button type="button" class="btn btn-outline btn-sm btn-delete-row" data-id="' + c.id + '">ลบ</button>' +
+      "</div>"
     );
   }
 
@@ -705,8 +674,8 @@
      Actions
      --------------------------------------------------------- */
   // ⚠️ c.status เปลี่ยนได้จากฟังก์ชันนี้เท่านั้น และฟังก์ชันนี้ถูกเรียกจาก click handler ของ
-  // ปุ่ม "ยืนยัน" (.btn-confirm) เท่านั้น — ห้าม AI (case-intake-diagnose.js/case-intake-upload.js/
-  // case-intake-assist.js) เรียก confirmCase() หรือแก้ c.status ตรงๆ เด็ดขาด ต้องรอคนกดยืนยันเสมอ
+  // ปุ่ม "ยืนยัน" (.btn-confirm) เท่านั้น — ห้าม AI (case-intake-diagnose.js/case-intake-upload.js)
+  // เรียก confirmCase() หรือแก้ c.status ตรงๆ เด็ดขาด ต้องรอคนกดยืนยันเสมอ
   function confirmCase(id) {
     var c = getCaseById(id);
     if (!c || c.status === "confirmed") return;
@@ -923,6 +892,26 @@
     renderOCRTable();
   }
 
+  // ลบแถวที่ยังรอตรวจสอบ (เช่น อัปโหลดผิดไฟล์/ซ้ำ) — แถวที่ยืนยันแล้วลบไม่ได้ เพราะแจ้งเตือนทีมไปแล้ว
+  function deleteCase(id) {
+    var c = getCaseById(id);
+    if (!c || c.status === "confirmed") return;
+    if (!window.confirm("ลบรายการ \"" + (c.patientName || c.fileName || "ไม่มีชื่อ") + "\" ออกจากตารางตรวจสอบ?")) return;
+
+    CASES.splice(CASES.indexOf(c), 1);
+    if (editingId === id) editingId = null;
+    var previewName = document.getElementById("source-preview-name");
+    if (c._fileUrl) {
+      if (previewName && previewName.textContent === c.fileName) {
+        document.getElementById("source-preview-panel").style.display = "none";
+        document.getElementById("source-preview-body").innerHTML = "";
+      }
+      URL.revokeObjectURL(c._fileUrl);
+    }
+    renderOCRTable();
+    renderUploadList();
+  }
+
   /* ---------------------------------------------------------
      Event wiring
      --------------------------------------------------------- */
@@ -947,6 +936,11 @@
       var confirmBtn = e.target.closest(".btn-confirm");
       if (confirmBtn) {
         confirmCase(parseInt(confirmBtn.getAttribute("data-id"), 10));
+        return;
+      }
+      var deleteBtn = e.target.closest(".btn-delete-row");
+      if (deleteBtn) {
+        deleteCase(parseInt(deleteBtn.getAttribute("data-id"), 10));
         return;
       }
       var geoBtn = e.target.closest(".btn-toggle-geo");
@@ -1021,19 +1015,6 @@
     initEvents();
     document.addEventListener("case-intake:ocr-result", function (e) {
       addCaseFromOCR(e.detail);
-    });
-    document.addEventListener("case-intake:assist-result", function (e) {
-      var c = getCaseById(e.detail.id);
-      if (!c) return;
-      if (e.detail.loading) {
-        c._assistLoading = true;
-      } else {
-        c._assistLoading = false;
-        c._assistResult = e.detail.error
-          ? { error: e.detail.error }
-          : { status: e.detail.status, notes: e.detail.notes };
-      }
-      renderOCRTable();
     });
     // รายชื่อโรคติดต่อจริงจาก 506Types (FEAT-INTAKE-11) — มาจาก case-intake-diagnose.js
     // (ไม่ใช้รายการโรคจาก Firestore 506Types อีกแล้ว — ใช้รหัสโรคตามแบบ รง.506 ที่กำหนดไว้ใน DISEASE_TYPES)
