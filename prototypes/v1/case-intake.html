@@ -117,6 +117,16 @@
       <div class="upload-file-list" id="upload-file-list" aria-label="ไฟล์ที่อัปโหลดล่าสุด"></div>
     </div>
 
+    <!-- 1.5) ภาพเอกสารต้นฉบับ — ให้เจ้าหน้าที่เทียบ/กรอกเองเมื่อ OCR อ่านลายมือไม่ได้ -->
+    <div class="panel" id="source-preview-panel" style="display:none;">
+      <div class="panel-header">
+        <h2>ภาพเอกสารต้นฉบับ</h2>
+        <span class="body-secondary" id="source-preview-name">--</span>
+      </div>
+      <p class="body-secondary" id="source-preview-hint"></p>
+      <div id="source-preview-body" style="max-height:520px;overflow:auto;border:1px solid var(--color-border);border-radius:8px;"></div>
+    </div>
+
     <!-- 2) OCR review table -->
     <div class="panel">
       <div class="panel-header">

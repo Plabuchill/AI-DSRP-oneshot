@@ -589,7 +589,7 @@
       tr.setAttribute("data-row-id", c.id);
       tr.innerHTML =
         "<td>" +
-          '<a class="file-link" href="#" data-case-id="' + c.id + '" data-file="' + c.fileName + '" title="' + (c._fileUrl ? "เปิดไฟล์ต้นฉบับที่อัปโหลด (แท็บใหม่)" : "เปิดไฟล์ต้นฉบับใน Google Drive (จำลอง)") + '">' +
+          '<a class="file-link" href="#" data-case-id="' + c.id + '" data-file="' + c.fileName + '" title="' + (c._fileUrl ? "ดูภาพเอกสารต้นฉบับที่อัปโหลด" : "เปิดไฟล์ต้นฉบับใน Google Drive (จำลอง)") + '">' +
             ICON_FILE + "ไฟล์ต้นฉบับ" +
           "</a>" +
         "</td>" +
@@ -843,6 +843,10 @@
       newCase.mapY = pos.y;
     }
     newCase._fileUrl = detail.file ? URL.createObjectURL(detail.file) : null;
+    // OCR อ่านได้น้อยกว่า 2 ช่องหลัก (ชื่อ/เลขบัตร/ที่อยู่/วันที่เริ่มป่วย) = ถือว่าอ่านไม่ได้ (มักเป็นลายมือ)
+    var filledMain = [newCase.patientName, newCase.nationalId.length === 13 ? "x" : "", newCase.address, newCase.onsetDate]
+      .filter(Boolean).length;
+    var weakOcr = filledMain < 2;
     newCase._originalMapX = newCase.mapX;
     newCase._originalMapY = newCase.mapY;
     newCase._originalLat = newCase.latitude;
@@ -850,8 +854,36 @@
     newCase._editingGeo = false;
 
     CASES.unshift(newCase);
+    if (weakOcr) editingId = newCase.id; // เปิดโหมดแก้ไขให้เลย เพราะต้องกรอกเองจากภาพต้นฉบับ
     renderUploadList();
     renderOCRTable();
+    showSourcePreview(newCase, weakOcr);
+  }
+
+  // แสดงภาพ/PDF ต้นฉบับเหนือตาราง OCR Review เพื่อเทียบหรือกรอกเอง (human-in-the-loop)
+  function showSourcePreview(c, weakOcr) {
+    var panel = document.getElementById("source-preview-panel");
+    if (!panel || !c || !c._fileUrl) return;
+    document.getElementById("source-preview-name").textContent = c.fileName;
+    document.getElementById("source-preview-hint").textContent = weakOcr
+      ? "ระบบอ่านข้อมูลจากเอกสารนี้ได้น้อยมาก (มักเป็นลายมือ) กรุณาดูภาพต้นฉบับด้านล่างแล้วกรอกข้อมูลในตารางเอง"
+      : "เทียบค่าในตารางกับภาพต้นฉบับก่อนกดยืนยัน (OCR ฟรีอ่านลายมือไม่แม่น)";
+    var body = document.getElementById("source-preview-body");
+    body.innerHTML = "";
+    var node;
+    if (c.fileType === "PDF") {
+      node = document.createElement("iframe");
+      node.style.cssText = "width:100%;height:500px;border:0;";
+    } else {
+      node = document.createElement("img");
+      node.alt = "ภาพเอกสารต้นฉบับ " + c.fileName;
+      node.style.cssText = "max-width:100%;display:block;cursor:zoom-in;";
+      node.addEventListener("click", function () { window.open(c._fileUrl, "_blank", "noopener"); });
+    }
+    node.src = c._fileUrl;
+    body.appendChild(node);
+    panel.style.display = "";
+    panel.scrollIntoView({ behavior: "smooth", block: "nearest" });
   }
 
   /* -- Inline edit of an OCR row (pending rows only): start / cancel / save -- */
@@ -947,7 +979,7 @@
       if (fileLink) {
         e.preventDefault();
         var fileCase = getCaseById(parseInt(fileLink.getAttribute("data-case-id"), 10));
-        if (fileCase && fileCase._fileUrl) window.open(fileCase._fileUrl, "_blank", "noopener");
+        if (fileCase && fileCase._fileUrl) showSourcePreview(fileCase, false);
       }
     });
 

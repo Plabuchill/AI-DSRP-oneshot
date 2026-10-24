@@ -79,6 +79,13 @@ function toArabicDigits(s) {
   return s.replace(/[\u0E50-\u0E59]/g, function (d) { return String(d.charCodeAt(0) - 0x0E50); });
 }
 
+// ข้อความอ่านออกจริงไหม: มีตัวอักษรไทย/อังกฤษพอ และไม่ใช่สัญลักษณ์ปนเกินครึ่ง
+function isReadable(value, minLetters) {
+  const letters = (String(value || "").match(/[\u0E01-\u0E39\u0E40-\u0E4C]|[A-Za-z]/g) || []).length;
+  const visible = String(value || "").replace(/\s/g, "").length;
+  return letters >= minLetters && letters / Math.max(visible, 1) >= 0.6;
+}
+
 // แยกช่องข้อมูลจากข้อความ OCR — เป็นฟังก์ชันล้วน ทดสอบแยกได้ (ไม่แตะ DOM)
 export function parseCaseReportText(rawText) {
   // Tesseract ไทยมักคืนสระอำเป็น นิคหิต+สระา (U+0E4D U+0E32) แยกตัว — รวมกลับเป็นสระอำ (U+0E33)
@@ -105,6 +112,10 @@ export function parseCaseReportText(rawText) {
         }
       });
     });
+    // บรรทัด "ชื่อบิดา/มารดา/ผู้ปกครอง/ผู้รายงาน" ไม่ใช่ชื่อผู้ป่วย — ตัด label ชื่อออกจากบรรทัดนั้น
+    if (/บิดา|มารดา|ผู้ปกครอง|ผู้รายงาน/.test(line)) {
+      for (let k = hits.length - 1; k >= 0; k--) if (hits[k].key === "patientName") hits.splice(k, 1);
+    }
     // เก็บ label ที่ยาวกว่า/เริ่มก่อนเมื่อทับกัน (เช่น "ชื่อ-สกุล" ชนะ "ชื่อ", "บ้านเลขที่" ชนะ "บ้าน")
     hits.sort(function (a, b) { return a.start - b.start || (b.end - b.start) - (a.end - a.start); });
     const picked = [];
@@ -131,7 +142,11 @@ export function parseCaseReportText(rawText) {
 
   fields.hn = (fields.hn.match(/[A-Za-z0-9\u0E50-\u0E59][A-Za-z0-9\u0E50-\u0E59\-\/.]*/) || [""])[0].replace(/[.\-\/]+$/, "");
   fields.villageNo = (fields.villageNo.match(new RegExp(NUM + "+")) || [""])[0];
-  fields.houseNo = (fields.houseNo.match(new RegExp(NUM + "[\\d\\u0E50-\\u0E59\\/\\-]*")) || [fields.houseNo])[0];
+  fields.houseNo = (fields.houseNo.match(new RegExp(NUM + "[\\d\\u0E50-\\u0E59\\/\\-]*")) || [""])[0];
+
+  // ค่าที่ OCR อ่านเป็นขยะ (ลายมือ) ให้ทิ้งเป็นค่าว่าง ดีกว่าเดาใส่ให้เจ้าหน้าที่เข้าใจผิด
+  if (!isReadable(fields.patientName, 4)) fields.patientName = "";
+  if (!isReadable(fields.address, 6)) fields.address = "";
 
   // เลขประจำตัวประชาชน 13 หลัก — ใช้ค่าจาก label ก่อน ไม่เจอค่อยหาจากทั้งข้อความ (รูปแบบ x-xxxx-xxxxx-xx-x)
   const digitsText = toArabicDigits(text);
