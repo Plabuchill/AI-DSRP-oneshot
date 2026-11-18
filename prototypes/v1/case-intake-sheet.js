@@ -82,16 +82,18 @@ function init() {
       return;
     }
     tbody.innerHTML = rows.map(function (r) {
-      const coords = r.latitude && r.longitude ? escapeHtml(r.latitude) + ", " + escapeHtml(r.longitude) : "-";
+      const coords = r.homeCoords ? escapeHtml(r.homeCoords) : "-";
       return "<tr>" +
-        "<td><strong>" + escapeHtml(r.caseId) + "</strong><span class=\"cell-secondary\">" +
+        "<td><strong>" + escapeHtml(r.seq ? r.seq + ". " : "") + escapeHtml(r.caseId) + "</strong><span class=\"cell-secondary\">" +
           (r.fileUrl && /^https:\/\//.test(r.fileUrl)
-            ? '<a href="' + escapeHtml(r.fileUrl) + '" target="_blank" rel="noopener">' + escapeHtml(r.fileName || "เปิดไฟล์") + "</a>"
-            : escapeHtml(r.fileName)) +
+            ? '<a href="' + escapeHtml(r.fileUrl) + '" target="_blank" rel="noopener">เปิดไฟล์ต้นฉบับ</a>'
+            : "ไม่มีไฟล์ต้นฉบับ") +
         "</span></td>" +
         "<td>" + escapeHtml(r.patientName) + "<span class=\"cell-secondary\">" + escapeHtml(formatNationalId(r.nationalId)) + "</span></td>" +
         "<td>" + escapeHtml(r.address) + "</td>" +
-        "<td>" + escapeHtml(r.onsetDate) + "</td>" +
+        "<td>" + escapeHtml(r.onsetDate) +
+          (r.epiWeek ? "<span class=\"cell-secondary\">สัปดาห์ที่ " + escapeHtml(r.epiWeek) + " · " + escapeHtml(r.month) + "</span>" : "") +
+        "</td>" +
         "<td>" + escapeHtml(r.diseaseId ? r.diseaseId + " " + r.diseaseName : "-") + "</td>" +
         "<td>" + coords + "</td>" +
         "<td>" + escapeHtml(r.team) + "</td>" +

@@ -498,20 +498,62 @@
     );
   }
 
+  // ---- รูปแบบข้อมูลตามทะเบียนผู้ป่วยของหน่วยงาน (ชีต Google) ----
+  var THAI_MONTHS_FULL = ["มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน",
+    "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"];
+
+  // "15/07/2569" (OCR/กรอกเอง) หรือ "14 ส.ค. 2569" (เคสตัวอย่าง) -> Date (ค.ศ.), อ่านไม่ได้ -> null
+  function parseThaiDate(text) {
+    var t = String(text || "").trim();
+    var d, m, y, match = t.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (match) {
+      d = +match[1]; m = +match[2] - 1; y = +match[3];
+    } else {
+      match = t.match(/^(\d{1,2})\s*(\S+?)\s*(\d{4})$/);
+      if (!match || THAI_MONTHS.indexOf(match[2]) === -1) return null;
+      d = +match[1]; m = THAI_MONTHS.indexOf(match[2]); y = +match[3];
+    }
+    if (y > 2400) y -= 543; // พ.ศ. -> ค.ศ.
+    var date = new Date(y, m, d);
+    return date.getMonth() === m && date.getDate() === d ? date : null;
+  }
+
+  function formatThaiShortDate(date) {
+    return pad2(date.getDate()) + "/" + pad2(date.getMonth() + 1) + "/" + (date.getFullYear() + 543);
+  }
+
+  // สัปดาห์ระบาดวิทยา (แบบ MMWR): สัปดาห์เริ่มวันอาทิตย์ สัปดาห์ที่ 1 = สัปดาห์แรกที่มีวันในปีนั้นอย่างน้อย 4 วัน
+  function epiWeekStart(year) {
+    var jan1 = new Date(year, 0, 1);
+    var dow = jan1.getDay();
+    return new Date(year, 0, 1 - dow + (dow > 3 ? 7 : 0));
+  }
+
+  function epiWeek(date) {
+    var y = date.getFullYear();
+    var start = epiWeekStart(y);
+    if (date < start) start = epiWeekStart(y - 1);
+    else if (date >= epiWeekStart(y + 1)) start = epiWeekStart(y + 1);
+    return Math.floor(Math.round((date - start) / 86400000) / 7) + 1;
+  }
+
   function sheetRecordOf(c) {
+    var onset = parseThaiDate(c.onsetDate);
+    var hasCoords = typeof c.latitude === "number" && typeof c.longitude === "number";
     return {
       caseId: c.caseId,
+      month: onset ? THAI_MONTHS_FULL[onset.getMonth()] : "", // เดือน/สัปดาห์ที่ คิดจากวันที่เริ่มป่วย
+      epiWeek: onset ? String(epiWeek(onset)) : "",
       patientName: c.patientName || "",
       nationalId: String(c.nationalId || "").replace(/\D/g, ""),
+      receivedDate: formatThaiShortDate(new Date()), // วันที่รับแจ้ง = วันที่กดยืนยันในระบบ (ชีตเขียนครั้งแรกครั้งเดียว)
+      homeCoords: hasCoords ? c.latitude.toFixed(6) + ", " + c.longitude.toFixed(6) : "",
       address: c.address || "",
       subdistrict: c.subdistrict || "",
-      onsetDate: c.onsetDate || "",
+      onsetDate: onset ? formatThaiShortDate(onset) : (c.onsetDate || ""),
       diseaseId: c.diseaseId || "",
       diseaseName: c.diseaseId ? diseaseNameById(c.diseaseId) : "",
-      latitude: typeof c.latitude === "number" ? c.latitude.toFixed(6) : "",
-      longitude: typeof c.longitude === "number" ? c.longitude.toFixed(6) : "",
-      team: TEAMS[c.zone] || "",
-      fileName: c.fileName || ""
+      team: TEAMS[c.zone] || ""
     };
   }
 
