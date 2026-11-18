@@ -11,24 +11,24 @@
      case-intake.html pipeline). Pre-grouped into clusters here;
      grouping is NOT computed live (see BUILD-PLAN.md assumption:
      "Cluster ถูก pre-group ไว้ใน mock data ไม่ใช่ clustering algorithm จริง").
-     mapX/mapY are percentages (0-100) placed on a 640x380 abstract
-     village-grid canvas, matching the pattern used in case-intake.js.
+     lat/lng are fictional coordinates inside each cluster's stated area
+     (not real households), shown on the OpenStreetMap cluster map.
      --------------------------------------------------------- */
   var CASES = [
     // Cluster 1 — dengue, ต.หนองบัว (pre-confirmed cluster on load)
-    { id: 1, clusterId: 1, patientName: "ปราณี ทองศรี", hn: "HN-70211", village: "หมู่ 4 บ้านโนนสวรรค์", onsetDay: 15, disease: "ไข้เลือดออก (Dengue NS1) — Positive", mapX: 20, mapY: 45 },
-    { id: 2, clusterId: 1, patientName: "สมชาย ใจตรง", hn: "HN-70235", village: "หมู่ 4 บ้านโนนสวรรค์", onsetDay: 16, disease: "ไข้เลือดออก (Dengue NS1) — Positive", mapX: 24, mapY: 50 },
-    { id: 3, clusterId: 1, patientName: "บัวผัน ศรีสุข", hn: "HN-70298", village: "หมู่ 5 บ้านหนองบัวพัฒนา", onsetDay: 17, disease: "ไข้เลือดออก (Dengue NS1) — Positive", mapX: 28, mapY: 58 },
-    { id: 4, clusterId: 1, patientName: "อนันต์ แก้วมณี (เด็กชาย)", hn: "HN-70310", village: "หมู่ 4 บ้านโนนสวรรค์", onsetDay: 19, disease: "ไข้เลือดออก (Dengue NS1) — Positive", mapX: 22, mapY: 61 },
+    { id: 1, clusterId: 1, patientName: "ปราณี ทองศรี", hn: "HN-70211", village: "หมู่ 4 บ้านโนนสวรรค์", onsetDay: 15, disease: "ไข้เลือดออก (Dengue NS1) — Positive", lat: 16.4572, lng: 102.8188 },
+    { id: 2, clusterId: 1, patientName: "สมชาย ใจตรง", hn: "HN-70235", village: "หมู่ 4 บ้านโนนสวรรค์", onsetDay: 16, disease: "ไข้เลือดออก (Dengue NS1) — Positive", lat: 16.4561, lng: 102.8203 },
+    { id: 3, clusterId: 1, patientName: "บัวผัน ศรีสุข", hn: "HN-70298", village: "หมู่ 5 บ้านหนองบัวพัฒนา", onsetDay: 17, disease: "ไข้เลือดออก (Dengue NS1) — Positive", lat: 16.4538, lng: 102.8231 },
+    { id: 4, clusterId: 1, patientName: "อนันต์ แก้วมณี (เด็กชาย)", hn: "HN-70310", village: "หมู่ 4 บ้านโนนสวรรค์", onsetDay: 19, disease: "ไข้เลือดออก (Dengue NS1) — Positive", lat: 16.4549, lng: 102.8179 },
 
     // Cluster 2 — HFMD, ต.บ้านเป็ด (pending confirmation)
-    { id: 5, clusterId: 2, patientName: "กมลชนก อยู่ดี (เด็กหญิง)", hn: "HN-71002", village: "ศูนย์เด็กเล็กบ้านเป็ดใหม่", onsetDay: 12, disease: "มือ เท้า ปาก (HFMD) — Positive", mapX: 58, mapY: 18 },
-    { id: 6, clusterId: 2, patientName: "ภูมิพัฒน์ วงศ์ทอง (เด็กชาย)", hn: "HN-71015", village: "ศูนย์เด็กเล็กบ้านเป็ดใหม่", onsetDay: 14, disease: "มือ เท้า ปาก (HFMD) — Positive", mapX: 64, mapY: 24 },
-    { id: 7, clusterId: 2, patientName: "ศิริลักษณ์ บุญมา (เด็กหญิง)", hn: "HN-71030", village: "หมู่ 3 บ้านเป็ดใหม่", onsetDay: 16, disease: "มือ เท้า ปาก (HFMD) — Positive", mapX: 70, mapY: 30 },
+    { id: 5, clusterId: 2, patientName: "กมลชนก อยู่ดี (เด็กหญิง)", hn: "HN-71002", village: "ศูนย์เด็กเล็กบ้านเป็ดใหม่", onsetDay: 12, disease: "มือ เท้า ปาก (HFMD) — Positive", lat: 16.4427, lng: 102.7861 },
+    { id: 6, clusterId: 2, patientName: "ภูมิพัฒน์ วงศ์ทอง (เด็กชาย)", hn: "HN-71015", village: "ศูนย์เด็กเล็กบ้านเป็ดใหม่", onsetDay: 14, disease: "มือ เท้า ปาก (HFMD) — Positive", lat: 16.4421, lng: 102.7869 },
+    { id: 7, clusterId: 2, patientName: "ศิริลักษณ์ บุญมา (เด็กหญิง)", hn: "HN-71030", village: "หมู่ 3 บ้านเป็ดใหม่", onsetDay: 16, disease: "มือ เท้า ปาก (HFMD) — Positive", lat: 16.4409, lng: 102.7848 },
 
     // Cluster 3 — food poisoning, ต.คลองใหญ่ (pending confirmation)
-    { id: 8, clusterId: 3, patientName: "วิชัย รุ่งเรือง", hn: "HN-72110", village: "หมู่ 1 บ้านคลองใหญ่", onsetDay: 18, disease: "อาหารเป็นพิษ — ยืนยันทางคลินิก", mapX: 80, mapY: 68 },
-    { id: 9, clusterId: 3, patientName: "อรุณี พรพิพัฒน์", hn: "HN-72125", village: "หมู่ 1 บ้านคลองใหญ่", onsetDay: 19, disease: "อาหารเป็นพิษ — ยืนยันทางคลินิก", mapX: 86, mapY: 76 }
+    { id: 8, clusterId: 3, patientName: "วิชัย รุ่งเรือง", hn: "HN-72110", village: "หมู่ 1 บ้านคลองใหญ่", onsetDay: 18, disease: "อาหารเป็นพิษ — ยืนยันทางคลินิก", lat: 12.9731, lng: 100.9063 },
+    { id: 9, clusterId: 3, patientName: "อรุณี พรพิพัฒน์", hn: "HN-72125", village: "หมู่ 1 บ้านคลองใหญ่", onsetDay: 19, disease: "อาหารเป็นพิษ — ยืนยันทางคลินิก", lat: 12.9722, lng: 100.9071 }
   ];
 
   var CLUSTERS = [
@@ -136,72 +136,100 @@
   };
 
   /* ---------------------------------------------------------
-     Render: Case Cluster Map (inline SVG — abstract village grid,
-     reuses the grid/road pattern from case-intake.js spot map, plus
-     a colored enclosing ellipse per cluster instead of per-case
-     100m radius rings)
+     Render: Case Cluster Map — แผนที่จริงด้วย Leaflet + OpenStreetMap
+     (แบบเดียวกับ Spot Map ใน case-intake.js) วงกลมสีต่อกลุ่มครอบเคส
+     ในกลุ่ม เส้นทึบ = ยืนยันแล้ว เส้นประ = รอยืนยัน
      --------------------------------------------------------- */
-  function buildClusterMapSVG() {
-    var W = 640, H = 380;
-    var parts = [];
+  // ขอบเขตกลุ่ม = วงกลมรอบจุดกึ่งกลางของเคสในกลุ่ม รัศมีถึงเคสที่ไกลที่สุด + ระยะเผื่อ (เมตร)
+  var CLUSTER_PADDING_M = 150;
+  var clusterMap = null;
+  var clusterLayer = null;
+  var clusterBounds = {};
 
-    parts.push('<svg viewBox="0 0 ' + W + ' ' + H + '" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="แผนที่กลุ่มเคสที่เชื่อมโยงกัน">');
-    parts.push('<rect x="0" y="0" width="' + W + '" height="' + H + '" fill="#F5F1EA" stroke="#DCD3C4" stroke-width="1"></rect>');
-
-    var step = 64;
-    for (var gx = step; gx < W; gx += step) {
-      parts.push('<line x1="' + gx + '" y1="0" x2="' + gx + '" y2="' + H + '" stroke="#DCD3C4" stroke-width="1" stroke-opacity="0.6"></line>');
+  function drawClusterMap() {
+    if (typeof L === "undefined") {
+      els.clusterMapWrap.innerHTML = '<p class="body-secondary" style="padding:16px;">โหลดแผนที่ไม่ได้ (ต้องเชื่อมต่ออินเทอร์เน็ต)</p>';
+      return;
     }
-    for (var gy = step; gy < H; gy += step) {
-      parts.push('<line x1="0" y1="' + gy + '" x2="' + W + '" y2="' + gy + '" stroke="#DCD3C4" stroke-width="1" stroke-opacity="0.6"></line>');
+    if (!clusterMap) {
+      clusterMap = L.map(els.clusterMapWrap, { scrollWheelZoom: false }).setView([13.5, 101], 5);
+      L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        maxZoom: 19,
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+      }).addTo(clusterMap);
+      clusterLayer = L.layerGroup().addTo(clusterMap);
+      // กรอบแผนที่เปลี่ยนขนาด -> ให้ Leaflet คำนวณใหม่ ไม่งั้นจะเหลือพื้นที่เทาไม่มีแผนที่
+      if (typeof ResizeObserver !== "undefined") {
+        new ResizeObserver(function () { clusterMap.invalidateSize(); }).observe(els.clusterMapWrap);
+      }
     }
+    clusterMap.invalidateSize();
+    clusterLayer.clearLayers();
 
-    parts.push('<line x1="0" y1="' + (H * 0.6) + '" x2="' + W + '" y2="' + (H * 0.48) + '" stroke="#B3A996" stroke-width="3" stroke-dasharray="10 8" stroke-opacity="0.6"></line>');
-    parts.push('<text x="12" y="20" font-size="11" fill="#6E6355" font-family="Inter, system-ui, sans-serif">แผนที่จำลอง — ไม่อ้างอิงพิกัดจริง</text>');
-
-    // Cluster enclosing shapes (drawn first, behind pins)
+    var allPoints = [];
     CLUSTERS.forEach(function (cluster) {
       var cases = getClusterCases(cluster.id);
-      var xs = cases.map(function (c) { return c.mapX; });
-      var ys = cases.map(function (c) { return c.mapY; });
-      var minX = Math.min.apply(null, xs), maxX = Math.max.apply(null, xs);
-      var minY = Math.min.apply(null, ys), maxY = Math.max.apply(null, ys);
-      var cx = ((minX + maxX) / 2) / 100 * W;
-      var cy = ((minY + maxY) / 2) / 100 * H;
-      var rx = Math.max(((maxX - minX) / 2) / 100 * W + 54, 60);
-      var ry = Math.max(((maxY - minY) / 2) / 100 * H + 40, 46);
-      var dash = cluster.status === "confirmed" ? "" : ' stroke-dasharray="6 5"';
+      if (!cases.length) return;
+      var center = L.latLng(
+        cases.reduce(function (sum, c) { return sum + c.lat; }, 0) / cases.length,
+        cases.reduce(function (sum, c) { return sum + c.lng; }, 0) / cases.length
+      );
+      var radius = cases.reduce(function (max, c) {
+        return Math.max(max, center.distanceTo([c.lat, c.lng]));
+      }, 0) + CLUSTER_PADDING_M;
 
-      parts.push('<ellipse cx="' + cx + '" cy="' + cy + '" rx="' + rx + '" ry="' + ry + '" fill="' + cluster.color + '" fill-opacity="0.14" stroke="' + cluster.color + '" stroke-width="1.5"' + dash + '></ellipse>');
-      parts.push('<text x="' + cx + '" y="' + (cy - ry + 16) + '" text-anchor="middle" font-size="12" font-weight="700" fill="#33291F" font-family="Inter, system-ui, sans-serif">' + escapeHtml(cluster.name) + '</text>');
-      parts.push('<text x="' + cx + '" y="' + (cy - ry + 30) + '" text-anchor="middle" font-size="10" fill="#6E6355" font-family="Inter, system-ui, sans-serif">ความมั่นใจ AI ' + cluster.confidencePct + '% &middot; ' + (cluster.status === "confirmed" ? "ยืนยันแล้ว" : "รอยืนยัน") + '</text>');
+      var ring = L.circle(center, {
+        radius: radius, color: cluster.color, weight: 1.5, fillColor: cluster.color, fillOpacity: 0.14,
+        dashArray: cluster.status === "confirmed" ? null : "6 5"
+      }).addTo(clusterLayer);
+      clusterBounds[cluster.id] = ring.getBounds();
+      // ป้ายชื่อกลุ่มวางที่ขอบบนของวง ไม่ทับหมุดเคสด้านใน
+      L.tooltip({ permanent: true, direction: "top", className: "cluster-map-label" })
+        .setLatLng([clusterBounds[cluster.id].getNorth(), center.lng])
+        .setContent(
+          "<strong>" + escapeHtml(cluster.name) + "</strong><br>ความมั่นใจ AI " + cluster.confidencePct + "% &middot; " +
+          (cluster.status === "confirmed" ? "ยืนยันแล้ว" : "รอยืนยัน")
+        )
+        .addTo(clusterLayer);
+
+      cases.forEach(function (c) {
+        L.circleMarker([c.lat, c.lng], { radius: 6, color: "#FFFFFF", weight: 2, fillColor: cluster.color, fillOpacity: 1 })
+          .bindTooltip(escapeHtml(c.patientName.split(" ")[0]), { direction: "top", offset: [0, -6] })
+          .bindPopup(
+            "<strong>" + escapeHtml(c.patientName) + "</strong> (" + escapeHtml(c.hn) + ")<br>" +
+            escapeHtml(c.village) + "<br>เริ่มป่วย " + c.onsetDay + " ส.ค. 2569<br>" +
+            escapeHtml(c.disease) + "<br>" + escapeHtml(cluster.name) + "<br>" +
+            c.lat.toFixed(4) + ", " + c.lng.toFixed(4)
+          )
+          .addTo(clusterLayer);
+        allPoints.push([c.lat, c.lng]);
+      });
     });
 
-    // Case pins on top
-    CASES.forEach(function (c) {
-      var cluster = getClusterById(c.clusterId);
-      var px = (c.mapX / 100) * W;
-      var py = (c.mapY / 100) * H;
-      parts.push('<g class="cluster-pin-group">');
-      parts.push('<circle cx="' + px + '" cy="' + py + '" r="6" fill="' + cluster.color + '"></circle>');
-      parts.push('<text x="' + px + '" y="' + (py - 12) + '" text-anchor="middle" font-size="10" font-weight="600" fill="#33291F" font-family="Inter, system-ui, sans-serif">' + escapeHtml(c.patientName.split(" ")[0]) + '</text>');
-      parts.push("<title>" + c.patientName + " (" + c.hn + ") — " + c.village + " · เริ่มป่วย " + c.onsetDay + " ส.ค. 2569 · " + cluster.name + "</title>");
-      parts.push("</g>");
-    });
+    if (allPoints.length) clusterMap.fitBounds(allPoints, { padding: [40, 40], maxZoom: 15 });
+  }
 
-    parts.push("</svg>");
-    return parts.join("");
+  // คลิกชื่อกลุ่มในคำอธิบายสี -> ซูมไปที่กลุ่มนั้น (กลุ่มอยู่คนละจังหวัด มุมมองรวมจึงซูมออกกว้าง)
+  function zoomToCluster(id) {
+    if (clusterMap && clusterBounds[id]) clusterMap.fitBounds(clusterBounds[id], { padding: [30, 30] });
   }
 
   function renderClusterMap() {
-    els.clusterMapWrap.innerHTML = buildClusterMapSVG();
+    drawClusterMap();
     els.clusterMapSubtitle.textContent = "เคสที่เกี่ยวข้อง " + CASES.length + " ราย · จัดกลุ่มเป็น " + CLUSTERS.length + " กลุ่มโดย AI";
 
     els.clusterMapLegend.innerHTML = "";
     CLUSTERS.forEach(function (cluster) {
       var item = document.createElement("div");
-      item.className = "region-legend-item";
+      item.className = "region-legend-item cluster-legend-zoom";
+      item.setAttribute("role", "button");
+      item.setAttribute("tabindex", "0");
+      item.title = "ซูมแผนที่ไปที่กลุ่มนี้";
       item.innerHTML = '<span class="cluster-swatch" style="background:' + cluster.color + '"></span>' + escapeHtml(cluster.name);
+      item.addEventListener("click", function () { zoomToCluster(cluster.id); });
+      item.addEventListener("keydown", function (e) {
+        if (e.key === "Enter" || e.key === " ") { e.preventDefault(); zoomToCluster(cluster.id); }
+      });
       els.clusterMapLegend.appendChild(item);
     });
   }

@@ -1269,6 +1269,22 @@ main.content-wrap {
   flex-shrink: 0;
 }
 
+/* Case Cluster Map (Leaflet): คลิกชื่อกลุ่มในคำอธิบายสีเพื่อซูม + ป้ายชื่อกลุ่มบนแผนที่ */
+.cluster-legend-zoom {
+  cursor: pointer;
+}
+
+.cluster-legend-zoom:hover,
+.cluster-legend-zoom:focus-visible {
+  text-decoration: underline;
+}
+
+.leaflet-tooltip.cluster-map-label {
+  font-size: var(--fs-small);
+  line-height: 1.4;
+  text-align: center;
+}
+
 /* ---------------------------------------------------------
    Cluster list (Case Cluster Map side panel)
    --------------------------------------------------------- */
