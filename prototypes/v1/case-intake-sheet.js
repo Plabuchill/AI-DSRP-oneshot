@@ -30,6 +30,16 @@ async function callSheet(action, extra) {
   return body;
 }
 
+// ไฟล์ -> base64 (ไม่มี prefix data:) สำหรับส่งให้ Apps Script บันทึกลง Drive
+function fileToBase64(file) {
+  return new Promise(function (resolve, reject) {
+    const reader = new FileReader();
+    reader.onload = function () { resolve(String(reader.result).split(",")[1] || ""); };
+    reader.onerror = function () { reject(new Error("อ่านไฟล์ต้นฉบับไม่ได้")); };
+    reader.readAsDataURL(file);
+  });
+}
+
 function escapeHtml(value) {
   return String(value == null ? "" : value)
     .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -74,7 +84,11 @@ function init() {
     tbody.innerHTML = rows.map(function (r) {
       const coords = r.latitude && r.longitude ? escapeHtml(r.latitude) + ", " + escapeHtml(r.longitude) : "-";
       return "<tr>" +
-        "<td><strong>" + escapeHtml(r.caseId) + "</strong><span class=\"cell-secondary\">" + escapeHtml(r.fileName) + "</span></td>" +
+        "<td><strong>" + escapeHtml(r.caseId) + "</strong><span class=\"cell-secondary\">" +
+          (r.fileUrl && /^https:\/\//.test(r.fileUrl)
+            ? '<a href="' + escapeHtml(r.fileUrl) + '" target="_blank" rel="noopener">' + escapeHtml(r.fileName || "เปิดไฟล์") + "</a>"
+            : escapeHtml(r.fileName)) +
+        "</span></td>" +
         "<td>" + escapeHtml(r.patientName) + "<span class=\"cell-secondary\">" + escapeHtml(formatNationalId(r.nationalId)) + "</span></td>" +
         "<td>" + escapeHtml(r.address) + "</td>" +
         "<td>" + escapeHtml(r.onsetDate) + "</td>" +
@@ -102,10 +116,13 @@ function init() {
 
   document.addEventListener("case-intake:save-to-sheet", async function (e) {
     const record = e.detail.record;
+    const file = e.detail.file;
     let result;
     try {
-      await callSheet("upsert", { record: record });
-      result = { caseId: record.caseId, ok: true };
+      const extra = { record: record };
+      if (file) extra.file = { name: file.name, mimeType: file.type, data: await fileToBase64(file) };
+      const body = await callSheet("upsert", extra);
+      result = { caseId: record.caseId, ok: true, fileUrl: body.fileUrl || "" };
     } catch (err) {
       result = { caseId: record.caseId, ok: false, error: err.message };
     }

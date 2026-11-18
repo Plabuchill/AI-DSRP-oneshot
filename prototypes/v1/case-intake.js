@@ -478,8 +478,16 @@
 
   function sheetStatusHtml(c) {
     if (!sheetEnabled()) return "";
-    if (c._sheetStatus === "saving") return '<div class="sheet-save-status">กำลังบันทึกลง Google Sheet...</div>';
-    if (c._sheetStatus === "saved") return '<div class="sheet-save-status sheet-save-ok">บันทึกลง Google Sheet แล้ว</div>';
+    if (c._sheetStatus === "saving") {
+      return '<div class="sheet-save-status">' +
+        (c._file && !c._driveUrl ? "กำลังบันทึกลง Google Sheet และอัปโหลดไฟล์ต้นฉบับไป Google Drive..." : "กำลังบันทึกลง Google Sheet...") +
+        "</div>";
+    }
+    if (c._sheetStatus === "saved") {
+      return '<div class="sheet-save-status sheet-save-ok">บันทึกลง Google Sheet แล้ว' +
+        (c._driveUrl ? ' · <a href="' + escapeHtml(c._driveUrl) + '" target="_blank" rel="noopener">เปิดไฟล์ต้นฉบับใน Drive</a>' : "") +
+        "</div>";
+    }
     return (
       (c._sheetStatus === "error" ? '<div class="sheet-save-status sheet-save-error">บันทึกลงชีตไม่สำเร็จ: ' + escapeHtml(c._sheetError || "") + "</div>" : "") +
       '<div class="row-actions" style="margin-top:6px;">' +
@@ -512,7 +520,10 @@
     if (!sheetEnabled() || !c || c.status !== "confirmed") return;
     c._sheetStatus = "saving";
     c._sheetError = "";
-    document.dispatchEvent(new CustomEvent("case-intake:save-to-sheet", { detail: { record: sheetRecordOf(c) } }));
+    // ไฟล์ต้นฉบับส่งเฉพาะครั้งแรก — ฝั่งชีตเก็บลิงก์ Drive ไว้แล้วจะไม่อัปโหลดซ้ำอยู่ดี แต่ไม่ต้องส่งไฟล์ใหญ่ซ้ำ
+    document.dispatchEvent(new CustomEvent("case-intake:save-to-sheet", {
+      detail: { record: sheetRecordOf(c), file: c._driveUrl ? null : c._file }
+    }));
   }
 
   function actionCellHtml(c, editing) {
@@ -866,6 +877,7 @@
       newCase.mapY = pos.y;
     }
     newCase._fileUrl = detail.file ? URL.createObjectURL(detail.file) : null;
+    newCase._file = detail.file || null; // ส่งไปเก็บใน Google Drive ตอนบันทึกลงชีตครั้งแรก (case-intake-sheet.js)
     // OCR อ่านได้น้อยกว่า 2 ช่องหลัก (ชื่อ/เลขบัตร/ที่อยู่/วันที่เริ่มป่วย) = ถือว่าอ่านไม่ได้ (มักเป็นลายมือ)
     var filledMain = [newCase.patientName, newCase.nationalId.length === 13 ? "x" : "", newCase.address, newCase.onsetDate]
       .filter(Boolean).length;
@@ -1100,6 +1112,7 @@
         if (c.caseId !== e.detail.caseId) return;
         c._sheetStatus = e.detail.ok ? "saved" : "error";
         c._sheetError = e.detail.error || "";
+        if (e.detail.fileUrl) c._driveUrl = e.detail.fileUrl;
       });
       renderOCRTable();
     });
