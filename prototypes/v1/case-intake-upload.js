@@ -38,7 +38,9 @@ async function extractCaseReportAI(file) {
     fields: {
       patientName: f.patientName || "", nationalId: f.nationalId || "", hn: "", address: f.address || "",
       houseNo: "", villageNo: "", village: "", subdistrict: "", district: "", province: "",
-      onsetDate: f.onsetDate || "", labResult: "", coordinates: f.coordinates || "", diseaseId: f.diseaseId || ""
+      onsetDate: f.onsetDate || "", labResult: "", coordinates: f.coordinates || "", diseaseId: f.diseaseId || "",
+      gender: f.gender || "", age: f.age || "", occupation: f.occupation || "", phone: f.phone || "",
+      workplace: f.workplace || "", hospital: f.hospital || "", foundDate: f.foundDate || ""
     }
   };
 }

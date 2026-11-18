@@ -75,7 +75,12 @@ function init() {
     openLink.style.display = "";
   }
 
+  const REG = window.AidsrpRegister;
+  let currentRows = [];
+  let editingCaseId = null;
+
   function renderRows(rows) {
+    currentRows = rows;
     subtitleEl.textContent = rows.length + " รายการ";
     if (!rows.length) {
       tbody.innerHTML = '<tr><td colspan="8" class="body-secondary">ยังไม่มีข้อมูลในชีต — กดยืนยันเคสในตารางตรวจสอบด้านบนเพื่อบันทึก</td></tr>';
@@ -97,10 +102,71 @@ function init() {
         "<td>" + escapeHtml(r.diseaseId ? r.diseaseId + " " + r.diseaseName : "-") + "</td>" +
         "<td>" + coords + "</td>" +
         "<td>" + escapeHtml(r.team) + "</td>" +
-        "<td>" + escapeHtml(r.savedAt) + "<span class=\"cell-secondary\">" + escapeHtml(r.savedBy) + "</span></td>" +
-        "</tr>";
+        "<td>" + escapeHtml(r.savedAt) + "<span class=\"cell-secondary\">" + escapeHtml(r.savedBy) + "</span>" +
+          '<button type="button" class="btn btn-outline btn-sm btn-sheet-edit" data-case-id="' + escapeHtml(r.caseId) + '" style="margin-top:6px;">' +
+            (editingCaseId === r.caseId ? "ปิดฟอร์ม" : "แก้ไข / กรอกเพิ่ม") + "</button>" +
+        "</td>" +
+        "</tr>" +
+        (editingCaseId === r.caseId ? sheetEditRowHtml(r) : "");
     }).join("");
+    const formRow = tbody.querySelector(".register-row");
+    if (formRow) REG.bindCompute(formRow, {}, diseaseNameById);
   }
+
+  function diseaseNameById(id) {
+    const d = (REG.diseases || []).find(function (x) { return x.id === id; });
+    return d ? d.name : "";
+  }
+
+  // ฟอร์มแก้ไขครบทุกช่องตามทะเบียน (รวมช่องหลัก) — ใช้กลับมากรอกผล Lab/ควบคุมโรค/HI-CI/น้ำมันภายหลังได้
+  function sheetEditRowHtml(r) {
+    return '<tr class="register-row"><td colspan="8" class="register-cell">' +
+      '<div class="register-head"><strong>แก้ไขข้อมูลทะเบียน ' + escapeHtml(r.caseId) + "</strong>" +
+        '<span class="body-secondary">บันทึกแล้วเขียนทับค่าในชีตทุกช่องที่แก้ได้ (ช่องที่ลบให้ว่างจะถูกลบในชีตด้วย)</span></div>' +
+      REG.renderForm(r, { includeMain: true, idPrefix: "sheet-", diseases: REG.diseases }) +
+      '<div class="row-actions" style="margin-top:12px;">' +
+        '<button type="button" class="btn btn-primary btn-sm btn-sheet-save" data-case-id="' + escapeHtml(r.caseId) + '">บันทึกลงชีต</button>' +
+        '<button type="button" class="btn btn-outline btn-sm btn-sheet-cancel">ยกเลิก</button>' +
+        '<span class="body-secondary sheet-edit-status"></span>' +
+      "</div></td></tr>";
+  }
+
+  async function saveSheetEdit(caseId, formRow, btn) {
+    const row = currentRows.find(function (r) { return r.caseId === caseId; });
+    if (!row) return;
+    const status = formRow.querySelector(".sheet-edit-status");
+    const record = REG.compute(Object.assign({}, row, REG.readForm(formRow)), diseaseNameById);
+    record.caseId = caseId;
+    ["seq", "receivedDate", "savedAt", "savedBy", "fileUrl", "team"].forEach(function (k) { delete record[k]; });
+    btn.disabled = true;
+    status.textContent = "กำลังบันทึกลง Google Sheet...";
+    try {
+      await callSheet("upsert", { record: record, overwrite: true });
+      editingCaseId = null;
+      await loadRows();
+    } catch (err) {
+      status.textContent = "บันทึกไม่สำเร็จ: " + err.message;
+      status.classList.add("upload-ocr-status-error");
+      btn.disabled = false;
+    }
+  }
+
+  tbody.addEventListener("click", function (e) {
+    const editBtn = e.target.closest(".btn-sheet-edit");
+    if (editBtn) {
+      const id = editBtn.getAttribute("data-case-id");
+      editingCaseId = editingCaseId === id ? null : id;
+      renderRows(currentRows);
+      return;
+    }
+    if (e.target.closest(".btn-sheet-cancel")) {
+      editingCaseId = null;
+      renderRows(currentRows);
+      return;
+    }
+    const saveBtn = e.target.closest(".btn-sheet-save");
+    if (saveBtn) saveSheetEdit(saveBtn.getAttribute("data-case-id"), saveBtn.closest(".register-row"), saveBtn);
+  });
 
   async function loadRows() {
     refreshBtn.disabled = true;

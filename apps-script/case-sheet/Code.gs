@@ -4,8 +4,8 @@
  * และลิงก์ไฟล์ถูกใส่ไว้ในคอลัมน์ "ลิงก์ไฟล์ต้นฉบับ (Drive)" ของแถวนั้น
  *
  * รูปแบบตาราง: 58 คอลัมน์ตามแบบทะเบียนผู้ป่วยของหน่วยงาน + คอลัมน์ของระบบต่อท้าย (Case ID ฯลฯ)
- * ระบบเขียนเฉพาะคอลัมน์ที่มีข้อมูลจาก Case Intake — คอลัมน์อื่น (เบอร์โทร เพศ อายุ Lab ควบคุมโรค น้ำมัน ฯลฯ)
- * เจ้าหน้าที่กรอกในชีตเอง และระบบไม่เขียนทับเมื่อยืนยันเคสซ้ำ
+ * หน้าเว็บกรอกได้ครบทุกช่อง (ฟอร์ม "ข้อมูลครบตามทะเบียน") — ตอนยืนยันเคส ระบบเขียนเฉพาะช่องที่มีค่า
+ * (ไม่ลบค่าที่เจ้าหน้าที่กรอกในชีตเอง) ส่วนการแก้ไขจากตารางชีตบนเว็บเขียนทับทุกช่องที่ส่งมา
  * หาคอลัมน์จากชื่อหัวตาราง (ไม่ผูกตำแหน่ง) — ย้าย/แทรกคอลัมน์ในชีตได้ ตราบใดที่ไม่เปลี่ยนชื่อหัวคอลัมน์
  *
  * วิธีใช้: เปิด Google Sheet ที่จะเก็บข้อมูล → ส่วนขยาย (Extensions) → Apps Script → วางไฟล์นี้
@@ -24,67 +24,69 @@ var SHEET_NAME = "ทะเบียนผู้ป่วย";
 var DRIVE_FOLDER_NAME = "AI-DSRP ไฟล์ต้นฉบับ Case Intake";
 var ALLOWED_MIME = ["application/pdf", "image/jpeg", "image/png"];
 
-// คอลัมน์ตามลำดับในชีต — key = ค่าที่ระบบเขียน (ไม่มี key = เจ้าหน้าที่กรอกเอง ระบบไม่แตะ)
-// mode: "insert" = เขียนตอนเพิ่มแถวใหม่ครั้งเดียว, ไม่ระบุ = เขียนทุกครั้งที่ยืนยัน (ข้ามถ้าค่าว่าง ไม่ลบที่คนกรอกไว้)
+// คอลัมน์ตามลำดับในชีต — key ตรงกับ prototypes/v1/register-fields.js
+// mode: "insert" = เขียนตอนเพิ่มแถวใหม่ครั้งเดียว, ไม่ระบุ = เขียนเมื่อบันทึก
+// ยืนยันจาก OCR Review: เขียนเฉพาะค่าที่ไม่ว่าง (ไม่ลบค่าที่เจ้าหน้าที่กรอกในชีตเอง)
+// แก้ไขจากตารางชีตบนเว็บ (overwrite): เขียนเฉพาะ key ที่ส่งมา รวมค่าว่าง (ลบค่าในชีตได้)
 var COLUMNS = [
   { label: "ลำดับ", key: "seq", mode: "insert" },
   { label: "เดือน", key: "month" },
   { label: "สัปดาห์ที่", key: "epiWeek" },
   { label: "ชื่อ-สกุล", key: "patientName" },
   { label: "เลขบัตร ปชช.", key: "nationalId" },
-  { label: "เบอร์โทร" },
-  { label: "sex" },
-  { label: "เพศ" },
-  { label: "อายุ" },
-  { label: "กลุ่มอายุ" },
-  { label: "OCCUPAT" },
-  { label: "อาชีพ" },
+  { label: "เบอร์โทร", key: "phone" },
+  { label: "sex", key: "sexCode" },
+  { label: "เพศ", key: "gender" },
+  { label: "อายุ", key: "age" },
+  { label: "กลุ่มอายุ", key: "ageGroup" },
+  { label: "OCCUPAT", key: "occupationCode" },
+  { label: "อาชีพ", key: "occupation" },
   { label: "วันที่รับแจ้ง", key: "receivedDate", mode: "insert" },
   { label: "พิกัด ละติจูด \nลองติจูด", key: "homeCoords" },
-  { label: "ชุมชน\n(ที่อยู่)" },
+  { label: "ชุมชน\n(ที่อยู่)", key: "homeCommunity" },
   { label: "ที่อยู่", key: "address" },
   { label: "ตำบล\n(ที่อยู่)", key: "subdistrict" },
-  { label: "พิกัด ละติจูด \nลองติจูด\n(ทำงาน)" },
-  { label: "ชุมชน\n(ที่ทำงาน)" },
-  { label: "สถานที่ทำงาน/เรียน" },
-  { label: "ตำบล\n(ทำงาน/เรียน)" },
-  { label: "ควบคุมโรค\n(แห่ง)" },
+  { label: "พิกัด ละติจูด \nลองติจูด\n(ทำงาน)", key: "workCoords" },
+  { label: "ชุมชน\n(ที่ทำงาน)", key: "workCommunity" },
+  { label: "สถานที่ทำงาน/เรียน", key: "workplace" },
+  { label: "ตำบล\n(ทำงาน/เรียน)", key: "workSubdistrict" },
+  { label: "ควบคุมโรค\n(แห่ง)", key: "controlSites" },
   { label: "วันที่\nเริ่มป่วย", key: "onsetDate" },
-  { label: "วันพบ\nผู้ป่วย" },
-  { label: "Hospi" },
-  { label: "สถานที่รักษา" },
+  { label: "วันพบ\nผู้ป่วย", key: "foundDate" },
+  { label: "Hospi", key: "hospitalCode" },
+  { label: "สถานที่รักษา", key: "hospital" },
   { label: "รหัสโรค", key: "diseaseId" },
   { label: "DX.", key: "diseaseName" },
-  { label: "WBC" },
-  { label: "Hb" },
-  { label: "Hct" },
-  { label: "Plt" },
-  { label: "สาเหตุ\nการป่วย \n14 วัน" },
-  { label: "ป่วยจาก" },
-  { label: "วันที่ควบคุมโรค" },
-  { label: "วันที่ 0" },
-  { label: "HI-0" },
-  { label: "CI-0" },
-  { label: "วันที่ 1" },
-  { label: "HI-1" },
-  { label: "CI-1" },
-  { label: "วันที่ 3" },
-  { label: "CI-3" },
-  { label: "HI-3" },
-  { label: "วันที่ 7" },
-  { label: "HI-7" },
-  { label: "CI-7" },
-  { label: "1. ดีเซล\n(ลิตร)" },
-  { label: "1. แก๊สฯ\n95\n(ลิตร)" },
-  { label: "1. น้ำยา\nเคมี\n(ml)" },
-  { label: "2.ดีเซล\n(ลิตร)" },
-  { label: "2. แก๊สฯ\n95\n(ลิตร)" },
-  { label: "2. น้ำยา\nเคมี\n(ml)" },
-  { label: "รวม\nดีเซล\n(ลิตร)" },
-  { label: "รวม\nแก๊สฯ95\n(ลิตร)" },
-  { label: "รวมน้ำยา\nเคมี\n(ml)" },
-  { label: "มาตรฐานการควบคุมโรค(Day1)" },
-  { label: "การควบคุมโรค" },
+  { label: "WBC", key: "wbc" },
+  { label: "Hb", key: "hb" },
+  { label: "Hct", key: "hct" },
+  { label: "Plt", key: "plt" },
+  { label: "สาเหตุ\nการป่วย \n14 วัน", key: "causeCode" },
+  { label: "ป่วยจาก", key: "causeText" },
+  { label: "วันที่ควบคุมโรค", key: "controlDate" },
+  { label: "วันที่ 0", key: "day0" },
+  { label: "HI-0", key: "hi0" },
+  { label: "CI-0", key: "ci0" },
+  { label: "วันที่ 1", key: "day1" },
+  { label: "HI-1", key: "hi1" },
+  { label: "CI-1", key: "ci1" },
+  { label: "วันที่ 3", key: "day3" },
+  { label: "CI-3", key: "ci3" },
+  { label: "HI-3", key: "hi3" },
+  { label: "วันที่ 7", key: "day7" },
+  { label: "HI-7", key: "hi7" },
+  { label: "CI-7", key: "ci7" },
+  { label: "1. ดีเซล\n(ลิตร)", key: "diesel1" },
+  { label: "1. แก๊สฯ\n95\n(ลิตร)", key: "gas1" },
+  { label: "1. น้ำยา\nเคมี\n(ml)", key: "chem1" },
+  { label: "2.ดีเซล\n(ลิตร)", key: "diesel2" },
+  { label: "2. แก๊สฯ\n95\n(ลิตร)", key: "gas2" },
+  { label: "2. น้ำยา\nเคมี\n(ml)", key: "chem2" },
+  { label: "รวม\nดีเซล\n(ลิตร)", key: "dieselTotal" },
+  { label: "รวม\nแก๊สฯ95\n(ลิตร)", key: "gasTotal" },
+  { label: "รวมน้ำยา\nเคมี\n(ml)", key: "chemTotal" },
+  { label: "มาตรฐานการควบคุมโรค(Day1)", key: "controlStandard" },
+  { label: "การควบคุมโรค", key: "controlResult" },
   // คอลัมน์ของระบบ (ต่อท้าย)
   { label: "Case ID", key: "caseId" },
   { label: "ทีมรับผิดชอบ", key: "team" },
@@ -100,7 +102,7 @@ function doPost(e) {
     if (!user) return json_({ ok: false, error: "ต้องเข้าสู่ระบบเว็บ ai-dsrp ก่อน" });
 
     if (body.action === "list") return json_({ ok: true, rows: listRows_() });
-    if (body.action === "upsert") return json_(upsertRow_(body.record || {}, user.email || "", body.file));
+    if (body.action === "upsert") return json_(upsertRow_(body.record || {}, user.email || "", body.file, body.overwrite === true));
     return json_({ ok: false, error: "action ไม่ถูกต้อง" });
   } catch (err) {
     return json_({ ok: false, error: "เกิดข้อผิดพลาดในสคริปต์: " + err.message });
@@ -184,7 +186,7 @@ function saveFile_(caseId, file) {
 // แถวที่มี Case ID ตรงกันถูกอัปเดต (แก้แถวที่ยืนยันแล้วแล้วยืนยันใหม่) ไม่งั้นเพิ่มแถวใหม่ต่อท้าย
 // อัปเดตเขียนเฉพาะคอลัมน์ของระบบที่มีค่า — คอลัมน์ที่เจ้าหน้าที่กรอกเองในชีตไม่ถูกแตะ
 // ไฟล์ต้นฉบับอัปโหลดครั้งเดียวต่อ Case ID — ยืนยันซ้ำจะคงลิงก์ไฟล์เดิมไว้ ไม่สร้างไฟล์ซ้ำใน Drive
-function upsertRow_(record, email, file) {
+function upsertRow_(record, email, file, overwrite) {
   if (!record.caseId) return { ok: false, error: "ไม่มี Case ID" };
   var lock = LockService.getScriptLock();
   lock.waitLock(30000);
@@ -211,8 +213,9 @@ function upsertRow_(record, email, file) {
     COLUMNS.forEach(function (c) {
       if (!c.key) return;
       if (c.mode === "insert" && !isNew) return;
+      if (overwrite && !(c.key in record)) return; // overwrite เขียนเฉพาะ key ที่ส่งมา (ไม่แตะลำดับ/วันที่รับแจ้ง/ลิงก์ Drive ฯลฯ)
       var value = record[c.key] == null ? "" : String(record[c.key]);
-      if (value === "") return;
+      if (value === "" && !(overwrite && !isNew)) return;
       sheet.getRange(rowIndex, colOf[c.key]).setNumberFormat("@").setValue(value);
     });
     return { ok: true, caseId: record.caseId, updated: !isNew, savedAt: record.savedAt, fileUrl: record.fileUrl };

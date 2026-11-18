@@ -1291,6 +1291,89 @@ main.content-wrap {
   color: var(--color-danger);
 }
 
+/* ฟอร์ม "ข้อมูลครบตามทะเบียนผู้ป่วย" (register-fields.js) — ใต้แถวใน OCR Review และในฟอร์มแก้ไขจากตารางชีต */
+.register-row > td.register-cell {
+  background: var(--color-surface);
+  padding: var(--space-3);
+}
+
+.register-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin-bottom: var(--space-2);
+}
+
+.register-head .btn {
+  margin-left: auto;
+}
+
+.register-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.register-group {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  padding: var(--space-2) var(--space-3) var(--space-3);
+  margin: 0;
+  min-width: 0;
+}
+
+.register-group legend {
+  font-weight: 600;
+  padding: 0 6px;
+}
+
+.register-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: var(--space-2);
+}
+
+.register-grid .register-wide {
+  grid-column: span 2;
+}
+
+.register-grid .form-field input,
+.register-grid .form-field select {
+  font-family: var(--font-family);
+  font-size: var(--fs-small);
+  color: var(--color-text-primary);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  padding: 6px 8px;
+  width: 100%;
+}
+
+.register-grid .form-field label {
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.register-grid .form-field.register-auto input[type="text"] {
+  background: var(--color-border);
+  color: var(--color-text-secondary);
+}
+
+/* ฟอร์มอยู่ในตารางที่เลื่อนแนวนอนได้ — ปักให้กว้างเท่าส่วนที่มองเห็น ไม่ล้นไปตามความกว้างตาราง (--register-w ตั้งใน register-fields.js) */
+.register-cell > .register-head,
+.register-cell > .register-form,
+.register-cell > .row-actions {
+  position: sticky;
+  left: var(--space-3);
+  width: var(--register-w, auto);
+  max-width: 100%;
+}
+
+@media (max-width: 480px) {
+  .register-grid .register-wide { grid-column: auto; }
+}
+
 /* แถบปุ่ม "ซูมไปที่" ใต้แผนที่ (Control Plan mini-map) */
 .map-zoom-bar {
   display: flex;

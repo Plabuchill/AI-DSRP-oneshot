@@ -498,63 +498,38 @@
     );
   }
 
-  // ---- รูปแบบข้อมูลตามทะเบียนผู้ป่วยของหน่วยงาน (ชีต Google) ----
-  var THAI_MONTHS_FULL = ["มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน",
-    "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"];
+  // ---- record ตามทะเบียนผู้ป่วยของหน่วยงาน (ชีต Google) — นิยามช่อง/รหัส/สูตรอยู่ใน register-fields.js ----
+  var REG = window.AidsrpRegister;
+  REG.diseases = DISEASE_TYPES; // ให้ฟอร์มแก้ไขจากตารางชีต (case-intake-sheet.js) ใช้รายการโรคชุดเดียวกัน
 
-  // "15/07/2569" (OCR/กรอกเอง) หรือ "14 ส.ค. 2569" (เคสตัวอย่าง) -> Date (ค.ศ.), อ่านไม่ได้ -> null
-  function parseThaiDate(text) {
-    var t = String(text || "").trim();
-    var d, m, y, match = t.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-    if (match) {
-      d = +match[1]; m = +match[2] - 1; y = +match[3];
-    } else {
-      match = t.match(/^(\d{1,2})\s*(\S+?)\s*(\d{4})$/);
-      if (!match || THAI_MONTHS.indexOf(match[2]) === -1) return null;
-      d = +match[1]; m = THAI_MONTHS.indexOf(match[2]); y = +match[3];
-    }
-    if (y > 2400) y -= 543; // พ.ศ. -> ค.ศ.
-    var date = new Date(y, m, d);
-    return date.getMonth() === m && date.getDate() === d ? date : null;
-  }
-
-  function formatThaiShortDate(date) {
-    return pad2(date.getDate()) + "/" + pad2(date.getMonth() + 1) + "/" + (date.getFullYear() + 543);
-  }
-
-  // สัปดาห์ระบาดวิทยา (แบบ MMWR): สัปดาห์เริ่มวันอาทิตย์ สัปดาห์ที่ 1 = สัปดาห์แรกที่มีวันในปีนั้นอย่างน้อย 4 วัน
-  function epiWeekStart(year) {
-    var jan1 = new Date(year, 0, 1);
-    var dow = jan1.getDay();
-    return new Date(year, 0, 1 - dow + (dow > 3 ? 7 : 0));
-  }
-
-  function epiWeek(date) {
-    var y = date.getFullYear();
-    var start = epiWeekStart(y);
-    if (date < start) start = epiWeekStart(y - 1);
-    else if (date >= epiWeekStart(y + 1)) start = epiWeekStart(y + 1);
-    return Math.floor(Math.round((date - start) / 86400000) / 7) + 1;
-  }
-
+  // ช่องหลักจากตาราง OCR Review + ช่องทะเบียนที่กรอกในฟอร์มรายละเอียด (c.extra) -> คำนวณช่อง auto ให้ครบ
   function sheetRecordOf(c) {
-    var onset = parseThaiDate(c.onsetDate);
     var hasCoords = typeof c.latitude === "number" && typeof c.longitude === "number";
-    return {
+    var record = REG.compute(Object.assign({}, c.extra || {}, {
       caseId: c.caseId,
-      month: onset ? THAI_MONTHS_FULL[onset.getMonth()] : "", // เดือน/สัปดาห์ที่ คิดจากวันที่เริ่มป่วย
-      epiWeek: onset ? String(epiWeek(onset)) : "",
       patientName: c.patientName || "",
       nationalId: String(c.nationalId || "").replace(/\D/g, ""),
-      receivedDate: formatThaiShortDate(new Date()), // วันที่รับแจ้ง = วันที่กดยืนยันในระบบ (ชีตเขียนครั้งแรกครั้งเดียว)
       homeCoords: hasCoords ? c.latitude.toFixed(6) + ", " + c.longitude.toFixed(6) : "",
       address: c.address || "",
       subdistrict: c.subdistrict || "",
-      onsetDate: onset ? formatThaiShortDate(onset) : (c.onsetDate || ""),
-      diseaseId: c.diseaseId || "",
-      diseaseName: c.diseaseId ? diseaseNameById(c.diseaseId) : "",
-      team: TEAMS[c.zone] || ""
-    };
+      onsetDate: c.onsetDate || "",
+      diseaseId: c.diseaseId || ""
+    }), diseaseNameById);
+    record.receivedDate = REG.formatThaiShortDate(new Date()); // วันที่รับแจ้ง = วันที่กดยืนยันในระบบ (ชีตเขียนครั้งแรกครั้งเดียว)
+    record.team = TEAMS[c.zone] || "";
+    return record;
+  }
+
+  // แถวฟอร์ม "ข้อมูลครบตามทะเบียน" ใต้แถวเคส — ค่าที่พิมพ์เก็บลง c.extra ทันที (ไม่หายเมื่อตาราง render ใหม่)
+  function registerRowHtml(c) {
+    var filled = Object.keys(c.extra || {}).filter(function (k) { return c.extra[k]; }).length;
+    return '<td colspan="8" class="register-cell">' +
+      '<div class="register-head"><strong>ข้อมูลครบตามทะเบียนผู้ป่วย</strong>' +
+        '<span class="body-secondary">กรอกแล้ว ' + filled + " ช่อง · บันทึกลง Google Sheet พร้อมกันตอนกดยืนยัน · ช่อง (คำนวณให้) ระบบเติมเอง</span>" +
+        '<button type="button" class="btn btn-outline btn-sm btn-close-register" data-id="' + c.id + '">ปิด</button></div>' +
+      REG.renderForm(REG.compute(Object.assign({}, c.extra || {}, { onsetDate: c.onsetDate, diseaseId: c.diseaseId }), diseaseNameById),
+        { idPrefix: c.id + "-", diseases: DISEASE_TYPES }) +
+      "</td>";
   }
 
   // ส่งให้ case-intake-sheet.js (module) บันทึก — ผลกลับมาทาง "case-intake:sheet-result"
@@ -591,6 +566,10 @@
         '<button type="button" class="btn btn-outline btn-sm btn-edit-row" data-id="' + c.id + '">' + ICON_EDIT + "แก้ไข</button>" +
         '<button type="button" class="btn btn-primary btn-sm btn-confirm" data-id="' + c.id + '">ยืนยัน</button>' +
         '<button type="button" class="btn btn-outline btn-sm btn-delete-row" data-id="' + c.id + '">ลบ</button>' +
+      "</div>" +
+      '<div class="row-actions" style="margin-top:6px;">' +
+        '<button type="button" class="btn btn-outline btn-sm btn-toggle-register" data-id="' + c.id + '">' +
+          (c._showRegister ? "ซ่อนข้อมูลทะเบียน" : "กรอกข้อมูลครบตามทะเบียน") + "</button>" +
       "</div>"
     );
   }
@@ -684,6 +663,14 @@
         "</td>" +
         "<td>" + actionCellHtml(c, editing) + "</td>";
       els.ocrTableBody.appendChild(tr);
+      if (c._showRegister && !confirmed) {
+        var regTr = document.createElement("tr");
+        regTr.className = "register-row";
+        regTr.setAttribute("data-register-id", c.id);
+        regTr.innerHTML = registerRowHtml(c);
+        els.ocrTableBody.appendChild(regTr);
+        REG.bindCompute(regTr, { onsetDate: c.onsetDate, diseaseId: c.diseaseId }, diseaseNameById);
+      }
     });
 
     var pending = CASES.filter(function (c) { return c.status === "pending"; }).length;
@@ -919,7 +906,13 @@
       newCase.mapY = pos.y;
     }
     newCase._fileUrl = detail.file ? URL.createObjectURL(detail.file) : null;
-    newCase._file = detail.file || null; // ส่งไปเก็บใน Google Drive ตอนบันทึกลงชีตครั้งแรก (case-intake-sheet.js)
+    newCase._file = detail.file || null;
+    // ช่องทะเบียนเพิ่มเติมที่ AI อ่านได้จากใบ รง.506 (ถ้าใช้ AI) — ค่าที่ไม่ตรงตัวเลือกถูกทิ้งตอนตรวจใน Worker แล้ว
+    newCase.extra = {};
+    ["gender", "age", "occupation", "phone", "workplace", "hospital", "foundDate"].forEach(function (k) {
+      if (fields[k]) newCase.extra[k] = String(fields[k]);
+    });
+    if (Object.keys(newCase.extra).length) newCase._showRegister = true; // ส่งไปเก็บใน Google Drive ตอนบันทึกลงชีตครั้งแรก (case-intake-sheet.js)
     // OCR อ่านได้น้อยกว่า 2 ช่องหลัก (ชื่อ/เลขบัตร/ที่อยู่/วันที่เริ่มป่วย) = ถือว่าอ่านไม่ได้ (มักเป็นลายมือ)
     var filledMain = [newCase.patientName, newCase.nationalId.length === 13 ? "x" : "", newCase.address, newCase.onsetDate]
       .filter(Boolean).length;
@@ -1060,6 +1053,13 @@
         confirmCase(parseInt(confirmBtn.getAttribute("data-id"), 10));
         return;
       }
+      var regBtn = e.target.closest(".btn-toggle-register, .btn-close-register");
+      if (regBtn) {
+        var regCase = getCaseById(parseInt(regBtn.getAttribute("data-id"), 10));
+        if (regCase) regCase._showRegister = !regCase._showRegister;
+        renderOCRTable();
+        return;
+      }
       var sheetBtn = e.target.closest(".btn-save-sheet");
       if (sheetBtn) {
         saveCaseToSheet(getCaseById(parseInt(sheetBtn.getAttribute("data-id"), 10)));
@@ -1113,6 +1113,18 @@
 
     // เลือกประเภทโรคติดต่อเองด้วยมือ (FEAT-INTAKE-11) — แก้ไข dropdown ได้เสมอ ไม่ว่าจะเคย
     // กด "ให้ AI ช่วยจัด" มาก่อนหรือไม่ (human-in-the-loop เดียวกับ FEAT-ANALYSIS-08)
+    els.ocrTableBody.addEventListener("input", storeRegisterInput);
+    els.ocrTableBody.addEventListener("change", storeRegisterInput);
+    function storeRegisterInput(e) {
+      var field = e.target.closest("[data-reg]");
+      var regTr = field && field.closest("[data-register-id]");
+      if (!regTr) return;
+      var c = getCaseById(parseInt(regTr.getAttribute("data-register-id"), 10));
+      if (!c) return;
+      c.extra = c.extra || {};
+      c.extra[field.getAttribute("data-reg")] = field.value.trim();
+    }
+
     els.ocrTableBody.addEventListener("change", function (e) {
       var select = e.target.closest(".select-disease-type");
       if (!select) return;
