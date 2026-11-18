@@ -246,6 +246,13 @@ function listRows_() {
   }).reverse();
 }
 
+// กด ▶ Run ฟังก์ชันนี้ในหน้า Apps Script หนึ่งครั้งเพื่อให้ Google ขอสิทธิ์ Drive/Sheet
+// (ฟังก์ชันที่ชื่อลงท้าย _ ไม่ขึ้นในเมนู Run จึงต้องมีตัวนี้แยกไว้)
+function authorizeDrive() {
+  Logger.log("โฟลเดอร์ไฟล์ต้นฉบับ: " + getFolder_().getUrl());
+  Logger.log("แท็บชีต: " + getSheet_().sheet.getName());
+}
+
 function json_(obj) {
   return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON);
 }
