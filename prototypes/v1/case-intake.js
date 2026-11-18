@@ -318,6 +318,7 @@
   // exactly. Also seed the editing-mode flag used by the manual
   // lat/long entry flow below.
   CASES.forEach(function (c, idx) {
+    c.caseId = "DEMO-" + ("00" + c.id).slice(-3); // เคสตัวอย่าง — แยกออกจากเคสจริงในชีตได้ด้วย prefix
     c._originalMapX = c.mapX;
     c._originalMapY = c.mapY;
     c._editingGeo = false;
@@ -470,13 +471,58 @@
     );
   }
 
+  // สถานะการบันทึกลง Google Sheet ของแถวที่ยืนยันแล้ว (case-intake-sheet.js) — แสดงเมื่อเชื่อมชีตไว้แล้วเท่านั้น
+  function sheetEnabled() {
+    return !!(window.AidsrpCaseSheet && window.AidsrpCaseSheet.enabled);
+  }
+
+  function sheetStatusHtml(c) {
+    if (!sheetEnabled()) return "";
+    if (c._sheetStatus === "saving") return '<div class="sheet-save-status">กำลังบันทึกลง Google Sheet...</div>';
+    if (c._sheetStatus === "saved") return '<div class="sheet-save-status sheet-save-ok">บันทึกลง Google Sheet แล้ว</div>';
+    return (
+      (c._sheetStatus === "error" ? '<div class="sheet-save-status sheet-save-error">บันทึกลงชีตไม่สำเร็จ: ' + escapeHtml(c._sheetError || "") + "</div>" : "") +
+      '<div class="row-actions" style="margin-top:6px;">' +
+        '<button type="button" class="btn btn-outline btn-sm btn-save-sheet" data-id="' + c.id + '">' +
+          (c._sheetStatus === "error" ? "ลองบันทึกอีกครั้ง" : "บันทึกลง Google Sheet") +
+        "</button>" +
+      "</div>"
+    );
+  }
+
+  function sheetRecordOf(c) {
+    return {
+      caseId: c.caseId,
+      patientName: c.patientName || "",
+      nationalId: String(c.nationalId || "").replace(/\D/g, ""),
+      address: c.address || "",
+      subdistrict: c.subdistrict || "",
+      onsetDate: c.onsetDate || "",
+      diseaseId: c.diseaseId || "",
+      diseaseName: c.diseaseId ? diseaseNameById(c.diseaseId) : "",
+      latitude: typeof c.latitude === "number" ? c.latitude.toFixed(6) : "",
+      longitude: typeof c.longitude === "number" ? c.longitude.toFixed(6) : "",
+      team: TEAMS[c.zone] || "",
+      fileName: c.fileName || ""
+    };
+  }
+
+  // ส่งให้ case-intake-sheet.js (module) บันทึก — ผลกลับมาทาง "case-intake:sheet-result"
+  function saveCaseToSheet(c) {
+    if (!sheetEnabled() || !c || c.status !== "confirmed") return;
+    c._sheetStatus = "saving";
+    c._sheetError = "";
+    document.dispatchEvent(new CustomEvent("case-intake:save-to-sheet", { detail: { record: sheetRecordOf(c) } }));
+  }
+
   function actionCellHtml(c, editing) {
     if (c.status === "confirmed") {
       return (
         '<span class="confirmed-check">' + ICON_CHECK + "ยืนยันแล้ว</span>" +
         '<div class="row-actions" style="margin-top:6px;">' +
           '<button type="button" class="btn btn-outline btn-sm btn-reopen-row" data-id="' + c.id + '">' + ICON_EDIT + "แก้ไข</button>" +
-        "</div>"
+        "</div>" +
+        sheetStatusHtml(c)
       );
     }
     if (editing) {
@@ -700,6 +746,7 @@
       subdistrict: c.subdistrict
     });
 
+    saveCaseToSheet(c);
     renderOCRTable();
     renderUploadList();
     renderNotificationLog();
@@ -771,6 +818,13 @@
   // ยังเป็น in-memory ล้วนเหมือน CASES เดิม (ไม่ persist ข้ามการ reload หน้า —
   // ดูเหตุผลขอบเขตใน BUILD-PLAN.md), geoAccuracy ตั้งเป็น "low" เสมอเพราะ OCR
   // ไม่ได้คืนพิกัด ต้องพึ่ง fallback "ปรับพิกัดด้วยมือ" ที่มีอยู่แล้ว
+  // Case ID ถาวรของเคสจากเอกสารที่อัปโหลด (ใช้เป็น key ในชีต — id ตัวเลขในหน้าเว็บเริ่มนับใหม่ทุกครั้งที่รีเฟรช)
+  function newCaseId(date) {
+    var stamp = date.getFullYear() + pad2(date.getMonth() + 1) + pad2(date.getDate()) + "-" +
+      pad2(date.getHours()) + pad2(date.getMinutes()) + pad2(date.getSeconds());
+    return "CI-" + stamp + "-" + Math.random().toString(36).slice(2, 5).toUpperCase();
+  }
+
   function addCaseFromOCR(detail) {
     var fields = detail.fields || {};
     var address = fields.address || composeAddress(fields);
@@ -783,6 +837,7 @@
 
     var newCase = {
       id: nextId,
+      caseId: newCaseId(now),
       fileName: detail.fileName,
       fileType: detail.fileType,
       fileSize: detail.fileSize,
@@ -898,6 +953,7 @@
     if (!window.confirm("ยกเลิกการยืนยันเคส \"" + c.patientName + "\" เพื่อแก้ไข?\nเคสจะกลับเป็น \"รอตรวจสอบ\" และหมุดจะออกจากแผนที่ แก้เสร็จต้องกดยืนยันใหม่ ระบบจะแจ้งเตือนทีมสอบสวนโรคอีกครั้ง")) return;
 
     c.status = "pending";
+    c._sheetStatus = null; // แถวในชีตคงค่าเดิมไว้ จนกว่ากดยืนยันใหม่ซึ่งจะเขียนทับด้วย Case ID เดิม
     editingId = id;
     renderOCRTable();
     renderUploadList();
@@ -948,6 +1004,12 @@
       var confirmBtn = e.target.closest(".btn-confirm");
       if (confirmBtn) {
         confirmCase(parseInt(confirmBtn.getAttribute("data-id"), 10));
+        return;
+      }
+      var sheetBtn = e.target.closest(".btn-save-sheet");
+      if (sheetBtn) {
+        saveCaseToSheet(getCaseById(parseInt(sheetBtn.getAttribute("data-id"), 10)));
+        renderOCRTable();
         return;
       }
       var reopenBtn = e.target.closest(".btn-reopen-row");
@@ -1032,6 +1094,14 @@
     initEvents();
     document.addEventListener("case-intake:ocr-result", function (e) {
       addCaseFromOCR(e.detail);
+    });
+    document.addEventListener("case-intake:sheet-result", function (e) {
+      CASES.forEach(function (c) {
+        if (c.caseId !== e.detail.caseId) return;
+        c._sheetStatus = e.detail.ok ? "saved" : "error";
+        c._sheetError = e.detail.error || "";
+      });
+      renderOCRTable();
     });
     // รายชื่อโรคติดต่อจริงจาก 506Types (FEAT-INTAKE-11) — มาจาก case-intake-diagnose.js
     // (ไม่ใช้รายการโรคจาก Firestore 506Types อีกแล้ว — ใช้รหัสโรคตามแบบ รง.506 ที่กำหนดไว้ใน DISEASE_TYPES)

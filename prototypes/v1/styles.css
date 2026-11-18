@@ -1269,6 +1269,28 @@ main.content-wrap {
   flex-shrink: 0;
 }
 
+/* Case Intake: ตาราง "ข้อมูลที่บันทึกใน Google Sheet" + สถานะบันทึกต่อแถวใน OCR Review */
+.sheet-panel-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.sheet-save-status {
+  margin-top: 6px;
+  font-size: var(--fs-caption);
+  color: var(--color-text-secondary);
+}
+
+.sheet-save-status.sheet-save-ok {
+  color: var(--color-primary);
+}
+
+.sheet-save-status.sheet-save-error {
+  color: var(--color-danger);
+}
+
 /* แถบปุ่ม "ซูมไปที่" ใต้แผนที่ (Control Plan mini-map) */
 .map-zoom-bar {
   display: flex;

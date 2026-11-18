@@ -165,6 +165,39 @@
       </div>
     </div>
 
+    <!-- 2.5) ข้อมูลที่บันทึกใน Google Sheet (FEAT-INTAKE-06) — โหลดจากชีตจริงผ่าน case-intake-sheet.js -->
+    <div class="panel" id="sheet-panel">
+      <div class="panel-header">
+        <h2>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"></rect><path d="M3 9h18M3 15h18M9 3v18"></path></svg>
+          ข้อมูลที่บันทึกใน Google Sheet
+        </h2>
+        <div class="sheet-panel-actions">
+          <span class="body-secondary" id="sheet-panel-subtitle">--</span>
+          <button type="button" class="btn btn-outline btn-sm" id="btn-sheet-refresh">รีเฟรช</button>
+          <a class="btn btn-outline btn-sm" id="link-open-sheet" href="#" target="_blank" rel="noopener" style="display:none;">เปิด Google Sheet</a>
+        </div>
+      </div>
+      <p id="sheet-panel-status" class="body-secondary" style="display:none;margin-bottom:8px;"></p>
+      <div class="table-scroll">
+        <table class="data-table" id="sheet-table">
+          <thead>
+            <tr>
+              <th>Case ID / ไฟล์ต้นฉบับ</th>
+              <th>ชื่อผู้ป่วย / เลขประจำตัวประชาชน</th>
+              <th>ที่อยู่ขณะป่วย</th>
+              <th>วันที่เริ่มป่วย</th>
+              <th>โรค</th>
+              <th>พิกัด (ละติจูด, ลองจิจูด)</th>
+              <th>ทีมรับผิดชอบ</th>
+              <th>บันทึกเมื่อ / ผู้บันทึก</th>
+            </tr>
+          </thead>
+          <tbody id="sheet-table-body"></tbody>
+        </table>
+      </div>
+    </div>
+
     <!-- 3 & 4) Spot map + Notification log -->
     <section class="dashboard-grid">
       <div class="stack">
@@ -215,6 +248,7 @@
 <script src="osm-map.js"></script>
 <script src="case-intake.js"></script>
 <script type="module" src="case-intake-upload.js"></script>
+<script type="module" src="case-intake-sheet.js"></script>
 <script type="module" src="case-intake-diagnose.js"></script>
 <script type="module" src="auth-guard.js"></script>
 </body>
