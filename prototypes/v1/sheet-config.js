@@ -3,5 +3,5 @@
 //   เว้นว่าง = ปิดการบันทึกลงชีต (หน้า Case Intake ทำงานแบบเดิม ข้อมูลอยู่ในหน้าเว็บอย่างเดียว)
 // CASE_SHEET_VIEW_URL = ลิงก์เปิดตัว Google Sheet (ไม่บังคับ) แสดงเป็นปุ่ม "เปิด Google Sheet"
 // ทั้งสองค่าไม่ใช่ secret — สคริปต์ฝั่งชีตรับเฉพาะผู้ที่ล็อกอินเว็บ ai-dsrp และตัวชีตแชร์ตามสิทธิ์ Google ปกติ
-export const CASE_SHEET_URL = "https://script.google.com/macros/s/AKfycbzrPoYSJAaSLKFtWMFuXYdefuP5ni0u5vSTgUX93m3S6umdf-vZFaO4Gxr6zfbUedaY/exec";
+export const CASE_SHEET_URL = "https://script.google.com/macros/s/AKfycbxRYUZGN6wmZv5rsjZKc-3ZtoJYc66iSNv8OoRKV1CIGVI5Cpn7oqp3VAMOwLPpw8hE/exec";
 export const CASE_SHEET_VIEW_URL = "";
