@@ -79,8 +79,8 @@
 
      รอบ 9 (2026-08-20): each area now has 2 selectable locations —
      "home" (ที่อยู่/บ้านผู้ป่วย) and "work" (สถานที่ทำงาน/เรียน) —
-     each with its own mock map coordinate (mockX/mockY, 0-100, for
-     the mini-map SVG only — not a real geographic coordinate) and
+     each with its own fictional coordinate (lat/lng inside the stated
+     area, not a real household — shown on the OpenStreetMap mini-map) and
      baseHouseholdsAt100m: a mock household-density figure at a
      100m radius, used to scale the "households affected" number
      as (radius/100)^2 when the user picks a wider radius. Home
@@ -119,8 +119,8 @@
       caseFoundDate: daysAgo(3),
       sourceFile: "รพ.สต.หนองบัว_dengue_58112.pdf",
       locations: [
-        { type: "home", label: "ที่อยู่ (บ้าน)", address: "ต.หนองบัว หมู่ 4 บ้านโนนสวรรค์", houseNo: "45", mockX: 15, mockY: 25, baseHouseholdsAt100m: 38, defaultRadius: 150 },
-        { type: "work", label: "สถานที่ทำงาน/เรียน", name: "โรงเรียนบ้านโนนสวรรค์", mockX: 22, mockY: 15, baseHouseholdsAt100m: 25, defaultRadius: 100 }
+        { type: "home", label: "ที่อยู่ (บ้าน)", address: "ต.หนองบัว หมู่ 4 บ้านโนนสวรรค์", houseNo: "45", lat: 16.4566, lng: 102.8195, baseHouseholdsAt100m: 38, defaultRadius: 150 },
+        { type: "work", label: "สถานที่ทำงาน/เรียน", name: "โรงเรียนบ้านโนนสวรรค์", lat: 16.4589, lng: 102.8168, baseHouseholdsAt100m: 25, defaultRadius: 100 }
       ]
     },
     {
@@ -132,8 +132,8 @@
       caseFoundDate: daysAgo(4),
       sourceFile: "รพ.สต.หนองบัว_dengue_58140.pdf",
       locations: [
-        { type: "home", label: "ที่อยู่ (บ้าน)", address: "ต.หนองบัว หมู่ 5 บ้านหนองบัวพัฒนา", houseNo: "12", mockX: 30, mockY: 55, baseHouseholdsAt100m: 54, defaultRadius: 100 },
-        { type: "work", label: "สถานที่ทำงาน/เรียน", name: "ตลาดสดหนองบัวพัฒนา", mockX: 38, mockY: 62, baseHouseholdsAt100m: 32, defaultRadius: 100 }
+        { type: "home", label: "ที่อยู่ (บ้าน)", address: "ต.หนองบัว หมู่ 5 บ้านหนองบัวพัฒนา", houseNo: "12", lat: 16.4531, lng: 102.8247, baseHouseholdsAt100m: 54, defaultRadius: 100 },
+        { type: "work", label: "สถานที่ทำงาน/เรียน", name: "ตลาดสดหนองบัวพัฒนา", lat: 16.4518, lng: 102.8269, baseHouseholdsAt100m: 32, defaultRadius: 100 }
       ]
     },
     {
@@ -145,8 +145,8 @@
       caseFoundDate: daysAgo(2),
       sourceFile: "รพ.สต.บ้านเป็ด_hfmd_58305.jpg",
       locations: [
-        { type: "home", label: "ที่อยู่ (บ้าน)", address: "ต.บ้านเป็ด หมู่ 3 บ้านเป็ดใหม่", houseNo: "8", mockX: 62, mockY: 20, baseHouseholdsAt100m: 40, defaultRadius: 100 },
-        { type: "work", label: "สถานที่ทำงาน/เรียน", name: "ศูนย์พัฒนาเด็กเล็กบ้านเป็ด", mockX: 70, mockY: 28, baseHouseholdsAt100m: 45, defaultRadius: 100 }
+        { type: "home", label: "ที่อยู่ (บ้าน)", address: "ต.บ้านเป็ด หมู่ 3 บ้านเป็ดใหม่", houseNo: "8", lat: 16.4410, lng: 102.7850, baseHouseholdsAt100m: 40, defaultRadius: 100 },
+        { type: "work", label: "สถานที่ทำงาน/เรียน", name: "ศูนย์พัฒนาเด็กเล็กบ้านเป็ด", lat: 16.4427, lng: 102.7861, baseHouseholdsAt100m: 45, defaultRadius: 100 }
       ]
     },
     {
@@ -158,8 +158,8 @@
       caseFoundDate: daysAgo(5),
       sourceFile: "รพ.สต.เกาะแก้ว_dengue_58890.pdf",
       locations: [
-        { type: "home", label: "ที่อยู่ (บ้าน)", address: "ต.เกาะแก้ว หมู่ 5 บ้านหาดทราย อ.เมือง จ.สงขลา", houseNo: "21", mockX: 80, mockY: 70, baseHouseholdsAt100m: 48, defaultRadius: 100 },
-        { type: "work", label: "สถานที่ทำงาน/เรียน", name: "แพปลาชุมชนบ้านหาดทราย", mockX: 88, mockY: 78, baseHouseholdsAt100m: 20, defaultRadius: 100 }
+        { type: "home", label: "ที่อยู่ (บ้าน)", address: "ต.เกาะแก้ว หมู่ 5 บ้านหาดทราย อ.เมือง จ.สงขลา", houseNo: "21", lat: 7.1798, lng: 100.5951, baseHouseholdsAt100m: 48, defaultRadius: 100 },
+        { type: "work", label: "สถานที่ทำงาน/เรียน", name: "แพปลาชุมชนบ้านหาดทราย", lat: 7.1829, lng: 100.5992, baseHouseholdsAt100m: 20, defaultRadius: 100 }
       ]
     }
   ];
@@ -719,58 +719,81 @@
   var approvalRejectedAtLabel = ""; // BUILD-PLAN.md รอบ 23
 
   /* ---------------------------------------------------------
-     Render: mini-map (inline SVG — abstract village grid, same
-     visual language as the spot map in case-intake.js /
-     case-analysis.js / field-tracking.js) showing only the
-     currently-selected (area+location) items, with a radius ring
-     sized relative to the radius chosen per row.
+     Render: mini-map — แผนที่จริง OpenStreetMap (osm-map.js) แสดง
+     เฉพาะ (พื้นที่+ตำแหน่ง) ที่เลือกอยู่ พร้อมวงรัศมีพ่นจริงเป็นเมตร
+     ตามรัศมีที่เลือกต่อรายการ
      --------------------------------------------------------- */
-  function buildMiniMapSVG(pool) {
-    var W = 640, H = 380;
-    var parts = [];
-
-    parts.push('<svg viewBox="0 0 ' + W + ' ' + H + '" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="แผนที่จำลองตำแหน่งและรัศมีที่เลือกพ่นสารเคมี">');
-    parts.push('<rect x="0" y="0" width="' + W + '" height="' + H + '" fill="#F5F1EA" stroke="#DCD3C4" stroke-width="1"></rect>');
-
-    var step = 64;
-    for (var gx = step; gx < W; gx += step) {
-      parts.push('<line x1="' + gx + '" y1="0" x2="' + gx + '" y2="' + H + '" stroke="#DCD3C4" stroke-width="1" stroke-opacity="0.6"></line>');
-    }
-    for (var gy = step; gy < H; gy += step) {
-      parts.push('<line x1="0" y1="' + gy + '" x2="' + W + '" y2="' + gy + '" stroke="#DCD3C4" stroke-width="1" stroke-opacity="0.6"></line>');
-    }
-
-    // simple road line for visual orientation only (abstract, not geodata)
-    parts.push('<line x1="0" y1="' + (H * 0.58) + '" x2="' + W + '" y2="' + (H * 0.46) + '" stroke="#B3A996" stroke-width="3" stroke-dasharray="10 8" stroke-opacity="0.6"></line>');
-    parts.push('<text x="12" y="20" font-size="11" fill="#6E6355" font-family="Inter, system-ui, sans-serif">แผนที่จำลอง — ไม่อ้างอิงพิกัดจริง</text>');
-
-    if (pool.length === 0) {
-      parts.push('<text x="' + (W / 2) + '" y="' + (H / 2) + '" text-anchor="middle" font-size="13" fill="#6E6355" font-family="Inter, system-ui, sans-serif">ยังไม่ได้เลือกพื้นที่/ตำแหน่งบนแผนที่</text>');
-    }
-
-    pool.forEach(function (item) {
-      var px = (item.loc.mockX / 100) * W;
-      var py = (item.loc.mockY / 100) * H;
-      var isHome = item.loc.type === "home";
-      var color = isHome ? "#8A9A5B" : "#7A6A53"; // secondary = home, primary = work/school, matches .pin-normal/.pin-adjusted
-      var pixelRadius = 22 * (item.radius / 100);
-      var pinTitle = escapeHtml(item.area.patientName) + " — " + escapeHtml(locDescriptor(item.loc)) + " &middot; รัศมี " + item.radius + " ม. &middot; " + item.households + " หลังคาเรือน (ประมาณ)";
-
-      parts.push('<g class="minimap-pin-group">');
-      parts.push('<circle cx="' + px + '" cy="' + py + '" r="' + pixelRadius + '" fill="' + color + '" fill-opacity="0.14" stroke="' + color + '" stroke-width="1.5"></circle>');
-      parts.push('<circle cx="' + px + '" cy="' + py + '" r="6" fill="' + color + '"></circle>');
-      parts.push('<text x="' + px + '" y="' + (py - pixelRadius - 8) + '" text-anchor="middle" font-size="11" font-weight="600" fill="#33291F" font-family="Inter, system-ui, sans-serif">' + (isHome ? "บ้าน" : "ที่ทำงาน/เรียน") + '</text>');
-      parts.push('<text x="' + px + '" y="' + (py + pixelRadius + 16) + '" text-anchor="middle" font-size="10" fill="#6E6355" font-family="Inter, system-ui, sans-serif">' + escapeHtml(item.area.patientName) + '</text>');
-      parts.push('<title>' + pinTitle + '</title>');
-      parts.push('</g>');
-    });
-
-    parts.push('</svg>');
-    return parts.join("");
-  }
+  var miniMap = null;
+  var miniMapSelectionKey = null;
 
   function renderMiniMap(pool) {
-    els.miniMapWrap.innerHTML = buildMiniMapSVG(pool);
+    if (!miniMap) miniMap = window.AidsrpMap.create(els.miniMapWrap);
+    if (!miniMap) return;
+    miniMap.layer.clearLayers();
+
+    var points = [];
+    pool.forEach(function (item) {
+      var isHome = item.loc.type === "home";
+      var color = isHome ? "#8A9A5B" : "#7A6A53"; // secondary = home, primary = work/school, matches .pin-normal/.pin-adjusted
+      var latlng = [item.loc.lat, item.loc.lng];
+      L.circle(latlng, { radius: item.radius, color: color, weight: 1.5, fillColor: color, fillOpacity: 0.14 }).addTo(miniMap.layer);
+      L.circleMarker(latlng, { radius: 6, color: "#FFFFFF", weight: 2, fillColor: color, fillOpacity: 1 })
+        .bindTooltip((isHome ? "บ้าน" : "ที่ทำงาน/เรียน") + " · " + escapeHtml(item.area.patientName), { direction: "top", offset: [0, -6] })
+        .bindPopup(
+          "<strong>" + escapeHtml(item.area.patientName) + "</strong><br>" + escapeHtml(locDescriptor(item.loc)) +
+          "<br>รัศมี " + item.radius + " ม. &middot; " + item.households + " หลังคาเรือน (ประมาณ)<br>" +
+          item.loc.lat.toFixed(4) + ", " + item.loc.lng.toFixed(4)
+        )
+        .addTo(miniMap.layer);
+      points.push(latlng);
+    });
+
+    // ซูมใหม่เฉพาะเมื่อชุดตำแหน่งที่เลือกเปลี่ยน — เปลี่ยนรัศมี/ชนิดน้ำมันไม่กระโดดมุมมอง
+    var key = pool.map(function (item) { return item.area.id + ":" + item.loc.type; }).join(",");
+    if (key !== miniMapSelectionKey) {
+      window.AidsrpMap.fit(miniMap.map, points, 16);
+      miniMapSelectionKey = key;
+      renderMiniMapZoomButtons(pool, points);
+    }
+  }
+
+  // พื้นที่อยู่คนละจังหวัด มุมมองรวมจึงซูมออกกว้าง — ปุ่มใต้แผนที่ซูมไปทีละพื้นที่ (ตำแหน่งที่เลือกของเคสนั้น)
+  function renderMiniMapZoomButtons(pool, allPoints) {
+    var bar = document.getElementById("control-plan-mini-map-zoom");
+    if (!bar) {
+      bar = document.createElement("div");
+      bar.id = "control-plan-mini-map-zoom";
+      bar.className = "map-zoom-bar";
+      els.miniMapWrap.parentNode.insertBefore(bar, els.miniMapWrap.nextSibling);
+    }
+    var byArea = {};
+    pool.forEach(function (item) {
+      if (!byArea[item.area.id]) byArea[item.area.id] = { area: item.area, items: [] };
+      byArea[item.area.id].items.push(item);
+    });
+    bar.innerHTML = '<span class="body-secondary">ซูมไปที่:</span>';
+    var addButton = function (label, onClick) {
+      var btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "btn btn-outline btn-sm";
+      btn.textContent = label;
+      btn.addEventListener("click", onClick);
+      bar.appendChild(btn);
+    };
+    Object.keys(byArea).forEach(function (id) {
+      var group = byArea[id];
+      addButton(group.area.name, function () {
+        var bounds = null;
+        group.items.forEach(function (item) {
+          var b = L.latLng(item.loc.lat, item.loc.lng).toBounds(item.radius * 2);
+          bounds = bounds ? bounds.extend(b) : b;
+        });
+        miniMap.map.fitBounds(bounds, { padding: [30, 30] });
+      });
+    });
+    if (Object.keys(byArea).length > 1) {
+      addButton("ทั้งหมด", function () { window.AidsrpMap.fit(miniMap.map, allPoints, 16); });
+    }
   }
 
   /* ---------------------------------------------------------
@@ -996,7 +1019,7 @@
       "ลงชื่อ.................................................... เจ้าหน้าที่ตรวจรับวัสดุเชื้อเพลิง",
       "(....................................................)",
       "",
-      "หมายเหตุ: ร่างเอกสารนี้สร้างโดยระบบ AI ตามแบบฟอร์มจริงของหน่วยงาน จากพื้นที่/ตำแหน่งและรัศมีที่เลือกไว้ในระบบ (แผนที่จำลอง ไม่อ้างอิงพิกัดจริง; จำนวนน้ำมันเป็นตัวเลขประมาณการ) โปรดตรวจสอบความถูกต้อง กรอกช่องว่าง และลงนามจริงก่อนยื่นขออนุมัติ"
+      "หมายเหตุ: ร่างเอกสารนี้สร้างโดยระบบ AI ตามแบบฟอร์มจริงของหน่วยงาน จากพื้นที่/ตำแหน่งและรัศมีที่เลือกไว้ในระบบ (พิกัดในระบบต้นแบบเป็นข้อมูลสมมุติ; จำนวนน้ำมันเป็นตัวเลขประมาณการ) โปรดตรวจสอบความถูกต้อง กรอกช่องว่าง และลงนามจริงก่อนยื่นขออนุมัติ"
     ];
     return lines.join("\n");
   }

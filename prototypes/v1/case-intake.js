@@ -633,27 +633,11 @@
      --------------------------------------------------------- */
   var PIN_COLORS = { normal: "#8A9A5B", flagged: "#C9A66B", adjusted: "#7A6A53" };
   var spotMap = null;
-  var spotLayer = null;
 
   function renderSpotMap() {
-    if (typeof L === "undefined") {
-      els.spotmapWrap.innerHTML = '<p class="body-secondary" style="padding:16px;">โหลดแผนที่ไม่ได้ (ต้องเชื่อมต่ออินเทอร์เน็ต)</p>';
-      return;
-    }
-    if (!spotMap) {
-      spotMap = L.map(els.spotmapWrap, { scrollWheelZoom: false }).setView([13.5, 101], 5);
-      L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        maxZoom: 19,
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-      }).addTo(spotMap);
-      spotLayer = L.layerGroup().addTo(spotMap);
-      // กรอบแผนที่เปลี่ยนขนาด (responsive/โหลด CSS ช้า) -> ให้ Leaflet คำนวณใหม่ ไม่งั้นจะเหลือพื้นที่เทาไม่มีแผนที่
-      if (typeof ResizeObserver !== "undefined") {
-        new ResizeObserver(function () { spotMap.invalidateSize(); }).observe(els.spotmapWrap);
-      }
-    }
-    spotMap.invalidateSize();
-    spotLayer.clearLayers();
+    if (!spotMap) spotMap = window.AidsrpMap.create(els.spotmapWrap);
+    if (!spotMap) return;
+    spotMap.layer.clearLayers();
 
     var bounds = [];
     CASES.forEach(function (c) {
@@ -667,7 +651,7 @@
       L.circle(latlng, {
         radius: 100, color: color, weight: 1.5, fillColor: color, fillOpacity: 0.14,
         dashArray: flagged ? "5 4" : null
-      }).addTo(spotLayer);
+      }).addTo(spotMap.layer);
       L.circleMarker(latlng, { radius: 7, color: "#FFFFFF", weight: 2, fillColor: color, fillOpacity: 1 })
         .bindTooltip(escapeHtml(String(c.patientName || "").split(" ")[0]), { permanent: true, direction: "top", offset: [0, -8] })
         .bindPopup(
@@ -677,12 +661,11 @@
           escapeHtml(TEAMS[c.zone] || "") + " · " + statusLabel + "<br>" +
           c.latitude.toFixed(4) + ", " + c.longitude.toFixed(4)
         )
-        .addTo(spotLayer);
+        .addTo(spotMap.layer);
       bounds.push(latlng);
     });
 
-    if (bounds.length === 1) spotMap.setView(bounds[0], 15);
-    else if (bounds.length > 1) spotMap.fitBounds(bounds, { padding: [40, 40], maxZoom: 15 });
+    window.AidsrpMap.fit(spotMap.map, bounds);
   }
 
   /* ---------------------------------------------------------

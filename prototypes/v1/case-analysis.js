@@ -143,28 +143,12 @@
   // ขอบเขตกลุ่ม = วงกลมรอบจุดกึ่งกลางของเคสในกลุ่ม รัศมีถึงเคสที่ไกลที่สุด + ระยะเผื่อ (เมตร)
   var CLUSTER_PADDING_M = 150;
   var clusterMap = null;
-  var clusterLayer = null;
   var clusterBounds = {};
 
   function drawClusterMap() {
-    if (typeof L === "undefined") {
-      els.clusterMapWrap.innerHTML = '<p class="body-secondary" style="padding:16px;">โหลดแผนที่ไม่ได้ (ต้องเชื่อมต่ออินเทอร์เน็ต)</p>';
-      return;
-    }
-    if (!clusterMap) {
-      clusterMap = L.map(els.clusterMapWrap, { scrollWheelZoom: false }).setView([13.5, 101], 5);
-      L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        maxZoom: 19,
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-      }).addTo(clusterMap);
-      clusterLayer = L.layerGroup().addTo(clusterMap);
-      // กรอบแผนที่เปลี่ยนขนาด -> ให้ Leaflet คำนวณใหม่ ไม่งั้นจะเหลือพื้นที่เทาไม่มีแผนที่
-      if (typeof ResizeObserver !== "undefined") {
-        new ResizeObserver(function () { clusterMap.invalidateSize(); }).observe(els.clusterMapWrap);
-      }
-    }
-    clusterMap.invalidateSize();
-    clusterLayer.clearLayers();
+    if (!clusterMap) clusterMap = window.AidsrpMap.create(els.clusterMapWrap);
+    if (!clusterMap) return;
+    clusterMap.layer.clearLayers();
 
     var allPoints = [];
     CLUSTERS.forEach(function (cluster) {
@@ -181,7 +165,7 @@
       var ring = L.circle(center, {
         radius: radius, color: cluster.color, weight: 1.5, fillColor: cluster.color, fillOpacity: 0.14,
         dashArray: cluster.status === "confirmed" ? null : "6 5"
-      }).addTo(clusterLayer);
+      }).addTo(clusterMap.layer);
       clusterBounds[cluster.id] = ring.getBounds();
       // ป้ายชื่อกลุ่มวางที่ขอบบนของวง ไม่ทับหมุดเคสด้านใน
       L.tooltip({ permanent: true, direction: "top", className: "cluster-map-label" })
@@ -190,7 +174,7 @@
           "<strong>" + escapeHtml(cluster.name) + "</strong><br>ความมั่นใจ AI " + cluster.confidencePct + "% &middot; " +
           (cluster.status === "confirmed" ? "ยืนยันแล้ว" : "รอยืนยัน")
         )
-        .addTo(clusterLayer);
+        .addTo(clusterMap.layer);
 
       cases.forEach(function (c) {
         L.circleMarker([c.lat, c.lng], { radius: 6, color: "#FFFFFF", weight: 2, fillColor: cluster.color, fillOpacity: 1 })
@@ -201,17 +185,17 @@
             escapeHtml(c.disease) + "<br>" + escapeHtml(cluster.name) + "<br>" +
             c.lat.toFixed(4) + ", " + c.lng.toFixed(4)
           )
-          .addTo(clusterLayer);
+          .addTo(clusterMap.layer);
         allPoints.push([c.lat, c.lng]);
       });
     });
 
-    if (allPoints.length) clusterMap.fitBounds(allPoints, { padding: [40, 40], maxZoom: 15 });
+    window.AidsrpMap.fit(clusterMap.map, allPoints);
   }
 
   // คลิกชื่อกลุ่มในคำอธิบายสี -> ซูมไปที่กลุ่มนั้น (กลุ่มอยู่คนละจังหวัด มุมมองรวมจึงซูมออกกว้าง)
   function zoomToCluster(id) {
-    if (clusterMap && clusterBounds[id]) clusterMap.fitBounds(clusterBounds[id], { padding: [30, 30] });
+    if (clusterMap && clusterBounds[id]) clusterMap.map.fitBounds(clusterBounds[id], { padding: [30, 30] });
   }
 
   function renderClusterMap() {

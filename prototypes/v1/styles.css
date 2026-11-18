@@ -1269,6 +1269,15 @@ main.content-wrap {
   flex-shrink: 0;
 }
 
+/* แถบปุ่ม "ซูมไปที่" ใต้แผนที่ (Control Plan mini-map) */
+.map-zoom-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+}
+
 /* Case Cluster Map (Leaflet): คลิกชื่อกลุ่มในคำอธิบายสีเพื่อซูม + ป้ายชื่อกลุ่มบนแผนที่ */
 .cluster-legend-zoom {
   cursor: pointer;

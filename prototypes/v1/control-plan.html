@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Control Plan — AI-DSRP</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -174,8 +175,8 @@
       <p class="area-select-summary no-print" id="area-select-summary">--</p>
 
       <div class="minimap-panel no-print">
-        <p class="body-secondary" style="margin-bottom:8px;">แผนที่จำลองตำแหน่งที่เลือกไว้ข้างบน — วงรัศมีจะใหญ่ขึ้นตามรัศมีที่เลือกต่อรายการ</p>
-        <div class="spotmap-wrap" id="control-plan-mini-map-wrap"></div>
+        <p class="body-secondary" style="margin-bottom:8px;">แผนที่ตำแหน่งที่เลือกไว้ข้างบน (OpenStreetMap) — วงรัศมีพ่นเป็นระยะจริงตามรัศมีที่เลือกต่อรายการ</p>
+        <div class="spotmap-wrap spotmap-leaflet" id="control-plan-mini-map-wrap" role="region" aria-label="แผนที่ตำแหน่งและรัศมีที่เลือกพ่นสารเคมี (OpenStreetMap)"></div>
         <div class="region-legend">
           <div class="region-legend-item"><span class="pin-dot pin-normal"></span>ที่อยู่ (บ้าน)</div>
           <div class="region-legend-item"><span class="pin-dot pin-adjusted"></span>สถานที่ทำงาน/เรียน</div>
@@ -212,6 +213,8 @@
   </div>
 </div>
 </div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="osm-map.js"></script>
 <script src="control-plan.js"></script>
 <script type="module" src="auth-guard.js"></script>
 </body>

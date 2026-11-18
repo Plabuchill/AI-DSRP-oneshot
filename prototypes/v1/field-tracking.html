@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Field Tracking — AI-DSRP</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -103,7 +104,7 @@
           </h2>
           <span class="body-secondary" id="tracking-map-subtitle">--</span>
         </div>
-        <div class="spotmap-wrap" id="tracking-map-wrap"></div>
+        <div class="spotmap-wrap spotmap-leaflet" id="tracking-map-wrap" role="region" aria-label="แผนที่ติดตามทีมพ่น (OpenStreetMap)"></div>
         <div class="region-legend">
           <div class="region-legend-item"><span class="pin-dot pin-not-arrived"></span>ยังไม่ถึงพื้นที่</div>
           <div class="region-legend-item"><span class="pin-dot pin-spraying"></span>กำลังพ่น</div>
@@ -145,6 +146,8 @@
   </div>
 </div>
 </div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="osm-map.js"></script>
 <script src="field-tracking.js"></script>
 <script type="module" src="auth-guard.js"></script>
 </body>
