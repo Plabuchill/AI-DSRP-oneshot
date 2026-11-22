@@ -1374,6 +1374,14 @@ main.content-wrap {
   .register-grid .register-wide { grid-column: auto; }
 }
 
+/* ตัวเลือกช่วงเวลาเคส (Case Analysis / Control Plan — sheet-cases.js) */
+.case-window-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
 /* แถบปุ่ม "ซูมไปที่" ใต้แผนที่ (Control Plan mini-map) */
 .map-zoom-bar {
   display: flex;

@@ -90,8 +90,10 @@
     <div class="page-header no-print">
       <div class="page-header-title">
         <h1>แผนควบคุมโรคและขออนุมัติ (Control Plan)</h1>
-        <p class="body-secondary">ช่วยทีมควบคุมโรค (ทีมพ่น) ร่างใบขออนุมัติเบิกน้ำมัน/น้ำยาเคมี และร่างแผนปฏิบัติงานควบคุมโรคจากข้อมูลพื้นที่/กลุ่มเคสที่ยืนยันแล้ว (ข้อมูลจำลอง)</p>
+        <p class="body-secondary">ช่วยทีมควบคุมโรค (ทีมพ่น) ร่างใบขออนุมัติเบิกน้ำมัน/น้ำยาเคมี และร่างแผนปฏิบัติงานควบคุมโรคจากเคสจริงในทะเบียนผู้ป่วย (Google Sheet) — ค่าที่เลือกบันทึกลงแท็บ "แผนควบคุมโรค"</p>
       </div>
+      <label class="body-secondary case-window-filter">ช่วงเวลา <select id="case-window-select" class="input-inline input-inline-md" aria-label="ช่วงวันเริ่มป่วยของเคสที่แสดง"></select></label>
+      <span id="plan-save-status" class="body-secondary" role="status"></span>
     </div>
 
     <!-- 1) Draft control workplan (สลับมาก่อนใบขออนุมัติ 2026-08-20 รอบ 12) -->
@@ -215,7 +217,9 @@
 </div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="osm-map.js"></script>
+<script src="register-fields.js"></script>
 <script src="control-plan.js"></script>
+<script type="module" src="sheet-cases.js"></script>
 <script type="module" src="auth-guard.js"></script>
 </body>
 </html>

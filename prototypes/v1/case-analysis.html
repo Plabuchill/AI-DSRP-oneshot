@@ -90,8 +90,9 @@
     <div class="page-header">
       <div class="page-header-title">
         <h1>วิเคราะห์และประสานงานสอบสวนโรค (Case Analysis)</h1>
-        <p class="body-secondary">AI ช่วยจัดกลุ่มเคสที่เชื่อมโยงกันตามเวลา/พื้นที่ ร่างรายงานสอบสวนโรคเบื้องต้น และช่วยประสานงาน อสม. ก่อนลงพื้นที่จริง (ข้อมูลจำลอง)</p>
+        <p class="body-secondary">จัดกลุ่มเคสจริงจากทะเบียนผู้ป่วย (Google Sheet) ตามเวลา/พื้นที่ ร่างรายงานสอบสวนโรคเบื้องต้น และช่วยประสานงาน อสม. (ส่วนแชต อสม. ยังเป็นข้อมูลจำลอง)</p>
       </div>
+      <label class="body-secondary case-window-filter">ช่วงเวลา <select id="case-window-select" class="input-inline input-inline-md" aria-label="ช่วงวันเริ่มป่วยของเคสที่แสดง"></select></label>
     </div>
 
     <!-- 1) Case Cluster Map + cluster list -->
@@ -205,7 +206,9 @@
 </div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="osm-map.js"></script>
+<script src="register-fields.js"></script>
 <script src="case-analysis.js"></script>
+<script type="module" src="sheet-cases.js"></script>
 <script type="module" src="case-analysis-506.js"></script>
 <script type="module" src="auth-guard.js"></script>
 </body>

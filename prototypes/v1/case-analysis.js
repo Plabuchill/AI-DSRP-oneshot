@@ -1,75 +1,21 @@
 /* =========================================================
    AI Disease Surveillance & Response Platform
-   Case Analysis — mock cluster map / draft report / อสม. chatbot
+   Case Analysis — แผนที่กลุ่มเคส / ร่างรายงาน / อสม. chatbot (จำลอง)
    (separate script from script.js and case-intake.js: own DOM/state)
    ========================================================= */
 (function () {
   "use strict";
 
   /* ---------------------------------------------------------
-     Mock cases — already ingested/confirmed at intake (see
-     case-intake.html pipeline). Pre-grouped into clusters here;
-     grouping is NOT computed live (see BUILD-PLAN.md assumption:
-     "Cluster ถูก pre-group ไว้ใน mock data ไม่ใช่ clustering algorithm จริง").
-     lat/lng are fictional coordinates inside each cluster's stated area
-     (not real households), shown on the OpenStreetMap cluster map.
+     เคสจริงจากชีตทะเบียนผู้ป่วย (sheet-cases.js โหลด + จัดกลุ่มให้ แล้วส่งมาทาง
+     "aidsrp:cases-ready") — จัดกลุ่มด้วยกฎ: โรคเดียวกัน บ้านห่างกัน ≤100 ม.
+     เริ่มป่วยห่างกัน ≤14 วัน (เชื่อมต่อกันเป็นทอด) กลุ่มต้องมีอย่างน้อย 2 ราย
+     สถานะ "ยืนยันกลุ่ม" เก็บในแท็บ "กลุ่มเคส" ของชีต (key = Cluster ID)
      --------------------------------------------------------- */
-  var CASES = [
-    // Cluster 1 — dengue, ต.หนองบัว (pre-confirmed cluster on load)
-    { id: 1, clusterId: 1, patientName: "ปราณี ทองศรี", hn: "HN-70211", village: "หมู่ 4 บ้านโนนสวรรค์", onsetDay: 15, disease: "ไข้เลือดออก (Dengue NS1) — Positive", lat: 16.4572, lng: 102.8188 },
-    { id: 2, clusterId: 1, patientName: "สมชาย ใจตรง", hn: "HN-70235", village: "หมู่ 4 บ้านโนนสวรรค์", onsetDay: 16, disease: "ไข้เลือดออก (Dengue NS1) — Positive", lat: 16.4561, lng: 102.8203 },
-    { id: 3, clusterId: 1, patientName: "บัวผัน ศรีสุข", hn: "HN-70298", village: "หมู่ 5 บ้านหนองบัวพัฒนา", onsetDay: 17, disease: "ไข้เลือดออก (Dengue NS1) — Positive", lat: 16.4538, lng: 102.8231 },
-    { id: 4, clusterId: 1, patientName: "อนันต์ แก้วมณี (เด็กชาย)", hn: "HN-70310", village: "หมู่ 4 บ้านโนนสวรรค์", onsetDay: 19, disease: "ไข้เลือดออก (Dengue NS1) — Positive", lat: 16.4549, lng: 102.8179 },
-
-    // Cluster 2 — HFMD, ต.บ้านเป็ด (pending confirmation)
-    { id: 5, clusterId: 2, patientName: "กมลชนก อยู่ดี (เด็กหญิง)", hn: "HN-71002", village: "ศูนย์เด็กเล็กบ้านเป็ดใหม่", onsetDay: 12, disease: "มือ เท้า ปาก (HFMD) — Positive", lat: 16.4427, lng: 102.7861 },
-    { id: 6, clusterId: 2, patientName: "ภูมิพัฒน์ วงศ์ทอง (เด็กชาย)", hn: "HN-71015", village: "ศูนย์เด็กเล็กบ้านเป็ดใหม่", onsetDay: 14, disease: "มือ เท้า ปาก (HFMD) — Positive", lat: 16.4421, lng: 102.7869 },
-    { id: 7, clusterId: 2, patientName: "ศิริลักษณ์ บุญมา (เด็กหญิง)", hn: "HN-71030", village: "หมู่ 3 บ้านเป็ดใหม่", onsetDay: 16, disease: "มือ เท้า ปาก (HFMD) — Positive", lat: 16.4409, lng: 102.7848 },
-
-    // Cluster 3 — food poisoning, ต.คลองใหญ่ (pending confirmation)
-    { id: 8, clusterId: 3, patientName: "วิชัย รุ่งเรือง", hn: "HN-72110", village: "หมู่ 1 บ้านคลองใหญ่", onsetDay: 18, disease: "อาหารเป็นพิษ — ยืนยันทางคลินิก", lat: 12.9731, lng: 100.9063 },
-    { id: 9, clusterId: 3, patientName: "อรุณี พรพิพัฒน์", hn: "HN-72125", village: "หมู่ 1 บ้านคลองใหญ่", onsetDay: 19, disease: "อาหารเป็นพิษ — ยืนยันทางคลินิก", lat: 12.9722, lng: 100.9071 }
-  ];
-
-  var CLUSTERS = [
-    {
-      id: 1,
-      name: "กลุ่มไข้เลือดออก ต.หนองบัว",
-      disease: "ไข้เลือดออก (Dengue Fever)",
-      subdistrict: "หนองบัว",
-      district: "เมือง",
-      province: "ขอนแก่น",
-      confidencePct: 92,
-      closeContactsEstimate: 18,
-      color: "#8A9A5B", // --color-secondary
-      status: "confirmed",
-      confirmedAtLabel: "20 ส.ค. 2569, 08:50 น."
-    },
-    {
-      id: 2,
-      name: "กลุ่มมือ เท้า ปาก ต.บ้านเป็ด",
-      disease: "มือ เท้า ปาก (HFMD)",
-      subdistrict: "บ้านเป็ด",
-      district: "เมือง",
-      province: "ขอนแก่น",
-      confidencePct: 81,
-      closeContactsEstimate: 12,
-      color: "#C9A66B", // --color-accent
-      status: "pending"
-    },
-    {
-      id: 3,
-      name: "กลุ่มอาหารเป็นพิษ ต.คลองใหญ่",
-      disease: "อาหารเป็นพิษ (Food Poisoning)",
-      subdistrict: "คลองใหญ่",
-      district: "บางละมุง",
-      province: "ชลบุรี",
-      confidencePct: 68,
-      closeContactsEstimate: 6,
-      color: "#7A6A53", // --color-primary
-      status: "pending"
-    }
-  ];
+  var CASES = [];      // { id, clusterId(เลข id ของกลุ่ม|null), caseId, patientName, village, onset, disease, lat, lng }
+  var CLUSTERS = [];   // { id, clusterId, name, disease, subdistrict, color, status, confirmedAtLabel, maxDistanceM, firstOnset, lastOnset }
+  var loadInfo = { loading: true, error: null, windowDays: 28, excludedNoOnset: 0 };
+  var UNCLUSTERED_COLOR = "#B3A996";
 
   function getClusterById(id) {
     for (var i = 0; i < CLUSTERS.length; i++) {
@@ -84,12 +30,12 @@
 
   function uniq(arr) {
     var out = [];
-    arr.forEach(function (v) { if (out.indexOf(v) === -1) out.push(v); });
+    arr.forEach(function (v) { if (v && out.indexOf(v) === -1) out.push(v); });
     return out;
   }
 
   function escapeHtml(value) {
-    return String(value)
+    return String(value == null ? "" : value)
       .replace(/&/g, "&amp;")
       .replace(/</g, "&lt;")
       .replace(/>/g, "&gt;")
@@ -97,7 +43,7 @@
   }
 
   /* ---------------------------------------------------------
-     Thai date/time formatting for "now" timestamps
+     Thai date/time formatting
      --------------------------------------------------------- */
   var THAI_MONTHS = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
 
@@ -108,6 +54,24 @@
     var m = THAI_MONTHS[date.getMonth()];
     var y = date.getFullYear() + 543;
     return d + " " + m + " " + y + ", " + pad2(date.getHours()) + ":" + pad2(date.getMinutes()) + " น.";
+  }
+
+  function formatThaiDate(date) {
+    return date ? date.getDate() + " " + THAI_MONTHS[date.getMonth()] + " " + (date.getFullYear() + 543) : "-";
+  }
+
+  function onsetRangeLabel(cluster) {
+    return cluster.firstOnset.getTime() === cluster.lastOnset.getTime()
+      ? formatThaiDate(cluster.firstOnset)
+      : formatThaiDate(cluster.firstOnset) + " – " + formatThaiDate(cluster.lastOnset);
+  }
+
+  function daySpan(cluster) {
+    return Math.round((cluster.lastOnset - cluster.firstOnset) / 86400000);
+  }
+
+  function criteriaLabel(cluster) {
+    return "บ้านห่างกันสูงสุด " + cluster.maxDistanceM + " ม. · เริ่มป่วยห่างกัน " + daySpan(cluster) + " วัน";
   }
 
   /* ---------------------------------------------------------
@@ -136,19 +100,64 @@
   };
 
   /* ---------------------------------------------------------
+     รับเคส/กลุ่มจาก sheet-cases.js -> แปลงเป็นโครงที่หน้าใช้ (id ตัวเลขสำหรับปุ่ม/ซูม)
+     --------------------------------------------------------- */
+  function applyCases(detail) {
+    var confirmedByKey = {};
+    (detail.state && detail.state.clusters || []).forEach(function (s) {
+      if (s.status === "ยืนยันแล้ว") confirmedByKey[s.clusterId] = s.updatedAt || "";
+    });
+    CLUSTERS = detail.clusters.map(function (cl, i) {
+      var confirmedAt = confirmedByKey[cl.clusterId];
+      return {
+        id: i + 1, clusterId: cl.clusterId, name: cl.name, disease: cl.disease, subdistrict: cl.subdistrict,
+        color: cl.color, maxDistanceM: cl.maxDistanceM, firstOnset: cl.firstOnset, lastOnset: cl.lastOnset,
+        status: confirmedAt !== undefined ? "confirmed" : "pending",
+        confirmedAtLabel: confirmedAt || ""
+      };
+    });
+    var idByKey = {};
+    CLUSTERS.forEach(function (cl) { idByKey[cl.clusterId] = cl.id; });
+    CASES = detail.cases.map(function (c, i) {
+      return {
+        id: i + 1, clusterId: c.clusterId ? idByKey[c.clusterId] : null, caseId: c.caseId,
+        patientName: c.patientName, village: c.community || ("ต." + c.subdistrict),
+        onset: c.onset, disease: c.diseaseId ? c.diseaseId + " " + c.diseaseName : "-",
+        lat: c.home ? c.home.lat : null, lng: c.home ? c.home.lng : null
+      };
+    });
+    loadInfo = { loading: false, error: detail.error, windowDays: detail.windowDays, excludedNoOnset: detail.excludedNoOnset };
+    renderAll();
+  }
+
+  function renderAll() {
+    renderClusterMap();
+    renderClusterList();
+    renderReportControls();
+  }
+
+  /* ---------------------------------------------------------
      Render: Case Cluster Map — แผนที่จริงด้วย Leaflet + OpenStreetMap
-     (แบบเดียวกับ Spot Map ใน case-intake.js) วงกลมสีต่อกลุ่มครอบเคส
-     ในกลุ่ม เส้นทึบ = ยืนยันแล้ว เส้นประ = รอยืนยัน
+     วงกลมสีต่อกลุ่มครอบเคสในกลุ่ม เส้นทึบ = ยืนยันแล้ว เส้นประ = รอยืนยัน
+     เคสเดี่ยว (ไม่เข้าเกณฑ์กลุ่ม) แสดงเป็นหมุดสีเทา
      --------------------------------------------------------- */
   // ขอบเขตกลุ่ม = วงกลมรอบจุดกึ่งกลางของเคสในกลุ่ม รัศมีถึงเคสที่ไกลที่สุด + ระยะเผื่อ (เมตร)
   var CLUSTER_PADDING_M = 150;
   var clusterMap = null;
   var clusterBounds = {};
 
+  function casePopup(c, clusterName) {
+    return "<strong>" + escapeHtml(c.patientName) + "</strong> (" + escapeHtml(c.caseId) + ")<br>" +
+      escapeHtml(c.village) + "<br>เริ่มป่วย " + formatThaiDate(c.onset) + "<br>" +
+      escapeHtml(c.disease) + "<br>" + escapeHtml(clusterName) + "<br>" +
+      c.lat.toFixed(4) + ", " + c.lng.toFixed(4);
+  }
+
   function drawClusterMap() {
     if (!clusterMap) clusterMap = window.AidsrpMap.create(els.clusterMapWrap);
     if (!clusterMap) return;
     clusterMap.layer.clearLayers();
+    clusterBounds = {};
 
     var allPoints = [];
     CLUSTERS.forEach(function (cluster) {
@@ -171,7 +180,7 @@
       L.tooltip({ permanent: true, direction: "top", className: "cluster-map-label" })
         .setLatLng([clusterBounds[cluster.id].getNorth(), center.lng])
         .setContent(
-          "<strong>" + escapeHtml(cluster.name) + "</strong><br>ความมั่นใจ AI " + cluster.confidencePct + "% &middot; " +
+          "<strong>" + escapeHtml(cluster.name) + "</strong><br>" + cases.length + " ราย &middot; " +
           (cluster.status === "confirmed" ? "ยืนยันแล้ว" : "รอยืนยัน")
         )
         .addTo(clusterMap.layer);
@@ -179,28 +188,45 @@
       cases.forEach(function (c) {
         L.circleMarker([c.lat, c.lng], { radius: 6, color: "#FFFFFF", weight: 2, fillColor: cluster.color, fillOpacity: 1 })
           .bindTooltip(escapeHtml(c.patientName.split(" ")[0]), { direction: "top", offset: [0, -6] })
-          .bindPopup(
-            "<strong>" + escapeHtml(c.patientName) + "</strong> (" + escapeHtml(c.hn) + ")<br>" +
-            escapeHtml(c.village) + "<br>เริ่มป่วย " + c.onsetDay + " ส.ค. 2569<br>" +
-            escapeHtml(c.disease) + "<br>" + escapeHtml(cluster.name) + "<br>" +
-            c.lat.toFixed(4) + ", " + c.lng.toFixed(4)
-          )
+          .bindPopup(casePopup(c, cluster.name))
           .addTo(clusterMap.layer);
         allPoints.push([c.lat, c.lng]);
       });
     });
 
+    CASES.forEach(function (c) {
+      if (c.clusterId || c.lat == null) return;
+      L.circleMarker([c.lat, c.lng], { radius: 5, color: "#FFFFFF", weight: 2, fillColor: UNCLUSTERED_COLOR, fillOpacity: 1 })
+        .bindTooltip(escapeHtml(c.patientName.split(" ")[0]), { direction: "top", offset: [0, -6] })
+        .bindPopup(casePopup(c, "เคสเดี่ยว (ไม่เข้าเกณฑ์กลุ่ม)"))
+        .addTo(clusterMap.layer);
+      allPoints.push([c.lat, c.lng]);
+    });
+
     window.AidsrpMap.fit(clusterMap.map, allPoints);
   }
 
-  // คลิกชื่อกลุ่มในคำอธิบายสี -> ซูมไปที่กลุ่มนั้น (กลุ่มอยู่คนละจังหวัด มุมมองรวมจึงซูมออกกว้าง)
+  // คลิกชื่อกลุ่มในคำอธิบายสี -> ซูมไปที่กลุ่มนั้น
   function zoomToCluster(id) {
     if (clusterMap && clusterBounds[id]) clusterMap.map.fitBounds(clusterBounds[id], { padding: [30, 30] });
   }
 
+  function windowLabel() {
+    return loadInfo.windowDays ? "เริ่มป่วยใน " + loadInfo.windowDays + " วันล่าสุด" : "ทุกช่วงเวลา";
+  }
+
   function renderClusterMap() {
     drawClusterMap();
-    els.clusterMapSubtitle.textContent = "เคสที่เกี่ยวข้อง " + CASES.length + " ราย · จัดกลุ่มเป็น " + CLUSTERS.length + " กลุ่มโดย AI";
+    if (loadInfo.loading) {
+      els.clusterMapSubtitle.textContent = "กำลังโหลดเคสจาก Google Sheet...";
+    } else if (loadInfo.error) {
+      els.clusterMapSubtitle.textContent = loadInfo.error;
+    } else {
+      var single = CASES.filter(function (c) { return !c.clusterId; }).length;
+      var noCoords = CASES.filter(function (c) { return c.lat == null; }).length;
+      els.clusterMapSubtitle.textContent = "เคส " + CASES.length + " ราย (" + windowLabel() + ") · จัดได้ " + CLUSTERS.length +
+        " กลุ่ม · เคสเดี่ยว " + single + " ราย" + (noCoords ? " · ไม่มีพิกัด " + noCoords + " ราย (ไม่แสดงบนแผนที่)" : "");
+    }
 
     els.clusterMapLegend.innerHTML = "";
     CLUSTERS.forEach(function (cluster) {
@@ -216,23 +242,32 @@
       });
       els.clusterMapLegend.appendChild(item);
     });
+    if (CASES.some(function (c) { return !c.clusterId && c.lat != null; })) {
+      var single = document.createElement("div");
+      single.className = "region-legend-item";
+      single.innerHTML = '<span class="cluster-swatch" style="background:' + UNCLUSTERED_COLOR + '"></span>เคสเดี่ยว';
+      els.clusterMapLegend.appendChild(single);
+    }
   }
 
   /* ---------------------------------------------------------
-     Render: Cluster list (confidence + confirm action)
+     Render: Cluster list (เกณฑ์จัดกลุ่ม + ปุ่มยืนยัน)
      --------------------------------------------------------- */
   function renderClusterList() {
     var confirmedCount = CLUSTERS.filter(function (c) { return c.status === "confirmed"; }).length;
-    els.clusterListSubtitle.textContent = "ยืนยันแล้ว " + confirmedCount + " จาก " + CLUSTERS.length + " กลุ่ม";
+    els.clusterListSubtitle.textContent = loadInfo.loading ? "กำลังโหลด..." :
+      "ยืนยันแล้ว " + confirmedCount + " จาก " + CLUSTERS.length + " กลุ่ม · เกณฑ์: โรคเดียวกัน บ้านห่างกันไม่เกิน " +
+      window.AidsrpCases.CLUSTER_RADIUS_M + " ม. เริ่มป่วยห่างกันไม่เกิน " + window.AidsrpCases.CLUSTER_DAYS + " วัน";
 
     els.clusterList.innerHTML = "";
+    if (!loadInfo.loading && !CLUSTERS.length) {
+      els.clusterList.innerHTML = '<p class="body-secondary">' +
+        (loadInfo.error ? escapeHtml(loadInfo.error) : "ยังไม่พบกลุ่มเคสที่เข้าเกณฑ์ใน" + windowLabel()) + "</p>";
+      return;
+    }
     CLUSTERS.forEach(function (cluster) {
       var cases = getClusterCases(cluster.id);
       var villages = uniq(cases.map(function (c) { return c.village; }));
-      var days = cases.map(function (c) { return c.onsetDay; }).sort(function (a, b) { return a - b; });
-      var dateRangeLabel = days[0] === days[days.length - 1]
-        ? (days[0] + " ส.ค. 2569")
-        : (days[0] + "–" + days[days.length - 1] + " ส.ค. 2569");
 
       var item = document.createElement("div");
       item.className = "cluster-item";
@@ -244,17 +279,16 @@
             : "") +
         "</div>" +
         '<div class="cluster-meta">' +
-          "<span>" + cases.length + " ราย &middot; ต." + escapeHtml(cluster.subdistrict) + " อ." + escapeHtml(cluster.district) + " จ." + escapeHtml(cluster.province) + "</span>" +
-          "<span>ช่วงวันเริ่มป่วย: " + dateRangeLabel + " &middot; พื้นที่: " + escapeHtml(villages.join(", ")) + "</span>" +
-        "</div>" +
-        '<div class="cluster-confidence">' +
-          '<span class="cluster-confidence-label">ความมั่นใจของ AI ในการจัดกลุ่ม: ' + cluster.confidencePct + '%</span>' +
-          '<div class="cluster-confidence-bar"><div class="cluster-confidence-fill" style="width:' + cluster.confidencePct + '%;background:' + cluster.color + '"></div></div>' +
+          "<span>" + cases.length + " ราย &middot; " + escapeHtml(cluster.clusterId) + "</span>" +
+          "<span>ช่วงวันเริ่มป่วย: " + onsetRangeLabel(cluster) + " &middot; พื้นที่: " + escapeHtml(villages.join(", ")) + "</span>" +
+          "<span>" + escapeHtml(criteriaLabel(cluster)) + "</span>" +
         "</div>" +
         '<div class="cluster-actions">' +
           (cluster.status === "confirmed"
             ? '<span class="body-secondary">ยืนยันเมื่อ ' + escapeHtml(cluster.confirmedAtLabel || "") + "</span>"
-            : '<button type="button" class="btn btn-primary btn-sm btn-confirm-cluster" data-cluster-id="' + cluster.id + '">ยืนยัน cluster นี้</button>') +
+            : cluster.saving
+              ? '<span class="body-secondary">กำลังบันทึกลงชีต...</span>'
+              : '<button type="button" class="btn btn-primary btn-sm btn-confirm-cluster" data-cluster-id="' + cluster.id + '">ยืนยัน cluster นี้</button>') +
         "</div>";
       els.clusterList.appendChild(item);
     });
@@ -282,7 +316,7 @@
     confirmed.forEach(function (cluster) {
       var option = document.createElement("option");
       option.value = String(cluster.id);
-      option.textContent = cluster.name + " (ความมั่นใจ " + cluster.confidencePct + "%)";
+      option.textContent = cluster.name + " (" + getClusterCases(cluster.id).length + " ราย)";
       els.reportClusterSelect.appendChild(option);
     });
 
@@ -294,41 +328,36 @@
   }
 
   /* ---------------------------------------------------------
-     Draft report generation — template text assembled from the
-     selected cluster's real mock data (not free-form AI generation,
-     see BUILD-PLAN.md assumption).
+     Draft report generation — ข้อความตามแม่แบบจากเคสจริงในกลุ่ม
+     (ยังไม่ใช่ AI ร่างแบบอิสระ)
      --------------------------------------------------------- */
   function buildReportText(cluster) {
     var cases = getClusterCases(cluster.id);
-    var days = cases.map(function (c) { return c.onsetDay; }).sort(function (a, b) { return a - b; });
-    var dateRangeLabel = days[0] === days[days.length - 1]
-      ? (days[0] + " ส.ค. 2569")
-      : (days[0] + "–" + days[days.length - 1] + " ส.ค. 2569");
     var villages = uniq(cases.map(function (c) { return c.village; }));
 
     var caseListText = cases.map(function (c, i) {
-      return (i + 1) + ". " + c.patientName + " (" + c.hn + ") — " + c.village + " — เริ่มป่วย " + c.onsetDay + " ส.ค. 2569 — " + c.disease;
+      return (i + 1) + ". " + c.patientName + " (" + c.caseId + ") — " + c.village + " — เริ่มป่วย " + formatThaiDate(c.onset) + " — " + c.disease;
     }).join("\n");
 
     var lines = [
-      "รายงานการสอบสวนโรคเบื้องต้น (ร่างโดยระบบ AI)",
+      "รายงานการสอบสวนโรคเบื้องต้น (ร่างโดยระบบ)",
       "สร้างเมื่อ: " + formatThaiDateTime(new Date()),
       "",
-      "กลุ่มเคส: " + cluster.name,
-      "ระดับความมั่นใจของ AI ในการจัดกลุ่ม: " + cluster.confidencePct + "%",
+      "กลุ่มเคส: " + cluster.name + " (" + cluster.clusterId + ")",
+      "เกณฑ์จัดกลุ่ม: โรคเดียวกัน บ้านห่างกันไม่เกิน " + window.AidsrpCases.CLUSTER_RADIUS_M + " เมตร และเริ่มป่วยห่างกันไม่เกิน " +
+        window.AidsrpCases.CLUSTER_DAYS + " วัน (" + criteriaLabel(cluster) + ")",
       "โรค/ภาวะที่พบ: " + cluster.disease,
-      "พื้นที่: ต." + cluster.subdistrict + " อ." + cluster.district + " จ." + cluster.province,
-      "หมู่บ้าน/พื้นที่ที่เกี่ยวข้อง: " + villages.join(", "),
+      "พื้นที่: " + (cluster.subdistrict ? "ต." + cluster.subdistrict : "-"),
+      "หมู่บ้าน/ชุมชนที่เกี่ยวข้อง: " + villages.join(", "),
       "จำนวนผู้ป่วยในกลุ่ม: " + cases.length + " ราย",
-      "ช่วงวันเริ่มป่วย: " + dateRangeLabel,
-      "จำนวนผู้สัมผัสใกล้ชิดโดยประมาณ: " + cluster.closeContactsEstimate + " ราย",
+      "ช่วงวันเริ่มป่วย: " + onsetRangeLabel(cluster),
       "",
       "รายชื่อผู้ป่วยในกลุ่ม:",
       caseListText,
       "",
-      "ข้อเสนอแนะเบื้องต้น: ทีมสอบสวนโรคควรลงพื้นที่ตรวจสอบแหล่งแพร่เชื้อร่วมของกลุ่มนี้ ติดตามอาการผู้สัมผัสใกล้ชิดตามจำนวนประมาณข้างต้น และพิจารณามาตรการควบคุมโรคเบื้องต้นให้เหมาะกับชนิดของเชื้อที่ตรวจพบ",
+      "ข้อเสนอแนะเบื้องต้น: ทีมสอบสวนโรคควรลงพื้นที่ตรวจสอบแหล่งแพร่เชื้อร่วมของกลุ่มนี้ ค้นหาผู้ป่วยเพิ่มเติมในรัศมี 100 เมตรรอบบ้านผู้ป่วย และพิจารณามาตรการควบคุมโรคให้เหมาะกับชนิดของโรค",
       "",
-      "หมายเหตุ: ร่างนี้สร้างโดยระบบ AI จากข้อมูลเคสที่ยืนยันแล้วในระบบ โปรดตรวจสอบความถูกต้องและปรับแก้ก่อนนำเสนอผู้บริหาร"
+      "หมายเหตุ: ร่างนี้สร้างจากข้อมูลเคสในทะเบียนผู้ป่วย (Google Sheet) โปรดตรวจสอบความถูกต้องและปรับแก้ก่อนนำเสนอผู้บริหาร"
     ];
     return lines.join("\n");
   }
@@ -351,19 +380,46 @@
   }
 
   /* ---------------------------------------------------------
-     Cluster confirmation action
+     Cluster confirmation — บันทึกลงแท็บ "กลุ่มเคส" ก่อน แล้วค่อยแสดงว่ายืนยันแล้ว
      --------------------------------------------------------- */
   function confirmCluster(id) {
     var cluster = getClusterById(id);
-    if (!cluster || cluster.status === "confirmed") return;
+    if (!cluster || cluster.status === "confirmed" || cluster.saving) return;
+    var cases = getClusterCases(cluster.id);
+    cluster.saving = true;
+    renderClusterList();
+    document.dispatchEvent(new CustomEvent("aidsrp:save-state", { detail: {
+      tab: "clusters", requestId: "cluster:" + cluster.clusterId,
+      records: [{
+        clusterId: cluster.clusterId, name: cluster.name, disease: cluster.disease, subdistrict: cluster.subdistrict,
+        caseCount: String(cases.length), caseIds: cases.map(function (c) { return c.caseId; }).join(", "), status: "ยืนยันแล้ว"
+      }]
+    } }));
+  }
 
-    cluster.status = "confirmed";
-    cluster.confirmedAtLabel = formatThaiDateTime(new Date());
+  document.addEventListener("aidsrp:state-saved", function (e) {
+    var d = e.detail || {};
+    if (String(d.requestId || "").indexOf("cluster:") !== 0) return;
+    var key = d.requestId.slice("cluster:".length);
+    CLUSTERS.forEach(function (cluster) {
+      if (cluster.clusterId !== key) return;
+      cluster.saving = false;
+      if (d.ok) {
+        cluster.status = "confirmed";
+        cluster.confirmedAtLabel = formatThaiDateTime(new Date());
+      } else {
+        alert("บันทึกการยืนยันกลุ่มลงชีตไม่สำเร็จ: " + (d.error || ""));
+      }
+    });
+    renderAll();
+  });
 
+  document.addEventListener("aidsrp:cases-loading", function () {
+    loadInfo.loading = true;
     renderClusterMap();
     renderClusterList();
-    renderReportControls();
-  }
+  });
+  document.addEventListener("aidsrp:cases-ready", function (e) { applyCases(e.detail); });
 
   /* ---------------------------------------------------------
      อสม. coordination chatbot — fixed script, revealed one pair
@@ -429,9 +485,9 @@
   }
 
   function init() {
-    renderClusterMap();
-    renderClusterList();
-    renderReportControls();
+    // เคสจริงมาจาก sheet-cases.js — ถ้าโหลดเสร็จก่อนหน้านี้ใช้ผลล่าสุดเลย ไม่งั้นแสดงสถานะกำลังโหลด
+    if (window.AidsrpCases && window.AidsrpCases.last) applyCases(window.AidsrpCases.last);
+    else renderAll();
     renderChat();
     initEvents();
   }

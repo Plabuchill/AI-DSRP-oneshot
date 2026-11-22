@@ -109,60 +109,17 @@
     return d;
   }
 
-  var AREAS = [
-    {
-      id: 1,
-      name: "ต.หนองบัว หมู่ 4 บ้านโนนสวรรค์",
-      clusterRef: "กลุ่มไข้เลือดออก ต.หนองบัว (ยืนยันแล้ว)",
-      riskLevel: "สูง",
-      patientName: "นายกิตติ มั่นคง",
-      caseFoundDate: daysAgo(3),
-      sourceFile: "รพ.สต.หนองบัว_dengue_58112.pdf",
-      locations: [
-        { type: "home", label: "ที่อยู่ (บ้าน)", address: "ต.หนองบัว หมู่ 4 บ้านโนนสวรรค์", houseNo: "45", lat: 16.4566, lng: 102.8195, baseHouseholdsAt100m: 38, defaultRadius: 150 },
-        { type: "work", label: "สถานที่ทำงาน/เรียน", name: "โรงเรียนบ้านโนนสวรรค์", lat: 16.4589, lng: 102.8168, baseHouseholdsAt100m: 25, defaultRadius: 100 }
-      ]
-    },
-    {
-      id: 2,
-      name: "ต.หนองบัว หมู่ 5 บ้านหนองบัวพัฒนา",
-      clusterRef: "กลุ่มไข้เลือดออก ต.หนองบัว (ยืนยันแล้ว)",
-      riskLevel: "สูง",
-      patientName: "นางสาวสุพรรณี ใจดี",
-      caseFoundDate: daysAgo(4),
-      sourceFile: "รพ.สต.หนองบัว_dengue_58140.pdf",
-      locations: [
-        { type: "home", label: "ที่อยู่ (บ้าน)", address: "ต.หนองบัว หมู่ 5 บ้านหนองบัวพัฒนา", houseNo: "12", lat: 16.4531, lng: 102.8247, baseHouseholdsAt100m: 54, defaultRadius: 100 },
-        { type: "work", label: "สถานที่ทำงาน/เรียน", name: "ตลาดสดหนองบัวพัฒนา", lat: 16.4518, lng: 102.8269, baseHouseholdsAt100m: 32, defaultRadius: 100 }
-      ]
-    },
-    {
-      id: 3,
-      name: "ต.บ้านเป็ด หมู่ 3 บ้านเป็ดใหม่ + ศูนย์เด็กเล็ก",
-      clusterRef: "กลุ่มมือ เท้า ปาก ต.บ้านเป็ด (รอยืนยัน)",
-      riskLevel: "ปานกลาง",
-      patientName: "เด็กชายอนุชา ศรีสุข",
-      caseFoundDate: daysAgo(2),
-      sourceFile: "รพ.สต.บ้านเป็ด_hfmd_58305.jpg",
-      locations: [
-        { type: "home", label: "ที่อยู่ (บ้าน)", address: "ต.บ้านเป็ด หมู่ 3 บ้านเป็ดใหม่", houseNo: "8", lat: 16.4410, lng: 102.7850, baseHouseholdsAt100m: 40, defaultRadius: 100 },
-        { type: "work", label: "สถานที่ทำงาน/เรียน", name: "ศูนย์พัฒนาเด็กเล็กบ้านเป็ด", lat: 16.4427, lng: 102.7861, baseHouseholdsAt100m: 45, defaultRadius: 100 }
-      ]
-    },
-    {
-      id: 4,
-      name: "ต.เกาะแก้ว หมู่ 5 บ้านหาดทราย",
-      clusterRef: "เคสไข้เลือดออกยืนยันใหม่ (จาก Case Intake)",
-      riskLevel: "ปานกลาง",
-      patientName: "นางสาวละออ แสงจันทร์",
-      caseFoundDate: daysAgo(5),
-      sourceFile: "รพ.สต.เกาะแก้ว_dengue_58890.pdf",
-      locations: [
-        { type: "home", label: "ที่อยู่ (บ้าน)", address: "ต.เกาะแก้ว หมู่ 5 บ้านหาดทราย อ.เมือง จ.สงขลา", houseNo: "21", lat: 7.1798, lng: 100.5951, baseHouseholdsAt100m: 48, defaultRadius: 100 },
-        { type: "work", label: "สถานที่ทำงาน/เรียน", name: "แพปลาชุมชนบ้านหาดทราย", lat: 7.1829, lng: 100.5992, baseHouseholdsAt100m: 20, defaultRadius: 100 }
-      ]
-    }
-  ];
+  /* ---------------------------------------------------------
+     เคสจริงจากชีตทะเบียนผู้ป่วย — sheet-cases.js โหลด/จัดกลุ่มแล้วส่งมาทาง
+     "aidsrp:cases-ready" (applyCases() ด้านล่างแปลงเป็น AREAS)
+     หนึ่งเคส = หนึ่ง area, ตำแหน่ง "home" จากพิกัด/ที่อยู่บ้าน, "work" มีเมื่อทะเบียนมี
+     สถานที่ทำงาน/เรียนหรือพิกัดที่ทำงาน — ค่าที่เลือกในหน้า (ตำแหน่งที่ใช้, รัศมี, ชนิดน้ำมัน,
+     ทีม/วัน/เวลา, พ่นแล้ว Day 0/1/7) บันทึกลงแท็บ "แผนควบคุมโรค" (key = Case ID:ตำแหน่ง)
+     --------------------------------------------------------- */
+  var AREAS = [];
+  var loadInfo = { loading: true, error: null, windowDays: 28 };
+  // จำนวนหลังคาเรือนต่อรัศมี 100 ม. (ค่าประมาณคงที่ — ทะเบียนยังไม่มีข้อมูลความหนาแน่นบ้านจริง)
+  var HOUSEHOLDS_PER_100M_ESTIMATE = 40;
 
   var RADIUS_OPTIONS = [100, 150, 200];
 
@@ -194,7 +151,6 @@
   // regardless of which tab the user toggled on first.
   var LOC_TYPE_ORDER = ["home", "work"];
   var activeLocTypesByAreaId = {};
-  AREAS.forEach(function (area) { activeLocTypesByAreaId[area.id] = ["home"]; });
 
   // radius chosen per (area+location) key — lazily defaulted from
   // location.defaultRadius the first time a key is read.
@@ -286,7 +242,7 @@
   // locations still describe the editable "name" field.
   function locDescriptor(loc) {
     return loc.type === "home"
-      ? ("ที่อยู่: " + loc.address + " เลขที่ " + loc.houseNo)
+      ? ("ที่อยู่: " + loc.address + (loc.houseNo ? " เลขที่ " + loc.houseNo : ""))
       : ("ที่ทำงาน/เรียน: " + loc.name);
   }
 
@@ -733,6 +689,7 @@
 
     var points = [];
     pool.forEach(function (item) {
+      if (typeof item.loc.lat !== "number" || typeof item.loc.lng !== "number") return; // ไม่มีพิกัด -> ไม่ปักหมุด
       var isHome = item.loc.type === "home";
       var color = isHome ? "#8A9A5B" : "#7A6A53"; // secondary = home, primary = work/school, matches .pin-normal/.pin-adjusted
       var latlng = [item.loc.lat, item.loc.lng];
@@ -785,10 +742,11 @@
       addButton(group.area.name, function () {
         var bounds = null;
         group.items.forEach(function (item) {
+          if (typeof item.loc.lat !== "number") return;
           var b = L.latLng(item.loc.lat, item.loc.lng).toBounds(item.radius * 2);
           bounds = bounds ? bounds.extend(b) : b;
         });
-        miniMap.map.fitBounds(bounds, { padding: [30, 30] });
+        if (bounds) miniMap.map.fitBounds(bounds, { padding: [30, 30] });
       });
     });
     if (Object.keys(byArea).length > 1) {
@@ -892,10 +850,11 @@
     // reuses .file-link + ICON_FILE from case-intake.js's pattern
     // exactly (href="#", mock preventDefault() on click — see the
     // .file-link click handler in initEvents() below).
-    var fileLinkHtml =
-      '<a class="file-link" href="#" data-file="' + escapeHtml(area.sourceFile) + '" title="เปิดไฟล์ต้นฉบับใน Google Drive (จำลอง) &mdash; ' + escapeHtml(area.sourceFile) + '">' +
-        ICON_FILE + "ไฟล์ต้นฉบับ" +
-      '</a>';
+    var fileLinkHtml = area.sourceUrl
+      ? '<a class="file-link" href="' + escapeHtml(area.sourceUrl) + '" target="_blank" rel="noopener" title="เปิดไฟล์ต้นฉบับใน Google Drive">' +
+          ICON_FILE + "ไฟล์ต้นฉบับ" + '</a>'
+      : '<span class="body-secondary">' + escapeHtml(area.caseId) + '</span>';
+    var hasWork = !!findLocation(area.id, "work");
 
     return (
       '<div class="area-select-group">' +
@@ -909,7 +868,9 @@
         '<div class="area-select-group-meta">' + escapeHtml(area.name) + ' &middot; ' + escapeHtml(area.clusterRef) + '</div>' +
         '<div class="loc-tab-group" role="group" aria-label="เลือกสถานที่ควบคุมโรคของ ' + escapeHtml(area.patientName) + ' (เลือกได้มากกว่า 1 แห่ง)">' +
           '<button type="button" class="' + tabHomeClass + '" data-area-id="' + area.id + '" data-loc-type="home" aria-pressed="' + homeActive + '">ชุมชน (ที่อยู่)</button>' +
-          '<button type="button" class="' + tabWorkClass + '" data-area-id="' + area.id + '" data-loc-type="work" aria-pressed="' + workActive + '">ชุมชน (ที่ทำงาน)</button>' +
+          (hasWork
+            ? '<button type="button" class="' + tabWorkClass + '" data-area-id="' + area.id + '" data-loc-type="work" aria-pressed="' + workActive + '">ชุมชน (ที่ทำงาน)</button>'
+            : '<button type="button" class="btn btn-sm btn-outline" disabled title="ทะเบียนยังไม่มีสถานที่ทำงาน/เรียนของเคสนี้">ชุมชน (ที่ทำงาน)</button>') +
         '</div>' +
         fieldSectionsHtml +
       '</div>'
@@ -917,7 +878,13 @@
   }
 
   function renderAreaList() {
-    els.areaSelectList.innerHTML = AREAS.map(buildAreaGroup).join("");
+    if (!AREAS.length) {
+      els.areaSelectList.innerHTML = '<p class="body-secondary">' + escapeHtml(loadInfo.loading
+        ? "กำลังโหลดเคสจาก Google Sheet..."
+        : (loadInfo.error || "ไม่มีเคสที่เริ่มป่วยในช่วงเวลาที่เลือก")) + "</p>";
+    } else {
+      els.areaSelectList.innerHTML = AREAS.map(buildAreaGroup).join("");
+    }
 
     var pool = getSelectedPool();
     var totalHouseholds = pool.reduce(function (sum, item) { return sum + item.households; }, 0);
@@ -1177,7 +1144,7 @@
     // static prototype).
     els.areaSelectList.addEventListener("click", function (e) {
       var fileLink = e.target.closest(".file-link");
-      if (fileLink) {
+      if (fileLink && fileLink.getAttribute("href") === "#") {
         e.preventDefault();
       }
     });
@@ -1197,6 +1164,7 @@
       activeLocTypesByAreaId[areaId] = activeTypes;
       renderAreaList();
       renderWorkplanSchedule();
+      schedulePersist(areaId);
     });
 
     // Address / house-no / workplace-name text inputs — sync straight into
@@ -1216,6 +1184,7 @@
       loc[field] = fieldInput.value;
       renderMiniMap(getSelectedPool());
       renderWorkplanSchedule();
+      schedulePersist(areaId);
     });
 
     els.areaSelectList.addEventListener("change", function (e) {
@@ -1225,6 +1194,7 @@
         radiusByKey[rKey] = parseInt(radiusSelect.value, 10);
         renderAreaList();
         renderWorkplanSchedule();
+        schedulePersist(parseInt(radiusSelect.getAttribute("data-area-id"), 10));
         return;
       }
 
@@ -1232,6 +1202,7 @@
       if (fuelTypeSelect) {
         var fKey = getLocationKey(parseInt(fuelTypeSelect.getAttribute("data-area-id"), 10), fuelTypeSelect.getAttribute("data-loc-type"));
         fuelTypeByKey[fKey] = fuelTypeSelect.value;
+        schedulePersist(parseInt(fuelTypeSelect.getAttribute("data-area-id"), 10));
         // No full renderAreaList()/renderWorkplanSchedule() needed — fuel
         // type doesn't affect the mini-map, household count, or workplan
         // table, only the aggregated ☑/☐ checkboxes computed at
@@ -1257,6 +1228,7 @@
         var day = input.getAttribute("data-day");
         sprayDone[day] = input.checked;
         renderWorkplanSchedule();
+        schedulePersist(parseInt(key, 10));
         return;
       }
 
@@ -1268,6 +1240,7 @@
         entry[field] = input.value; // dayOffset ("0"/"1"/"7") and hour/minute all stay as plain strings
       }
       renderWorkplanSchedule(); // re-sorts (team asc, then soonest -> latest) and re-renders the whole table
+      schedulePersist(parseInt(key, 10));
     });
 
     // รอบ 14: date filter bar above the workplan table — every change
@@ -1305,6 +1278,125 @@
     els.btnConfirmWorkplan.addEventListener("click", confirmWorkplan);
   }
 
+  /* ---------------------------------------------------------
+     เคสจริง -> AREAS + คืนค่าที่เคยเลือกจากแท็บ "แผนควบคุมโรค"
+     --------------------------------------------------------- */
+  function startOfDay(d) {
+    var x = new Date(d.getTime());
+    x.setHours(0, 0, 0, 0);
+    return x;
+  }
+
+  function applyCases(detail) {
+    var clusterByKey = {};
+    detail.clusters.forEach(function (cl) { clusterByKey[cl.clusterId] = cl; });
+    var confirmed = {};
+    (detail.state && detail.state.clusters || []).forEach(function (s) { if (s.status === "ยืนยันแล้ว") confirmed[s.clusterId] = true; });
+    var planByKey = {};
+    (detail.state && detail.state.controlPlan || []).forEach(function (r) { planByKey[r.planKey] = r; });
+
+    AREAS = detail.cases.map(function (c, i) {
+      var cl = c.clusterId ? clusterByKey[c.clusterId] : null;
+      var locations = [{
+        type: "home", label: "ที่อยู่ (บ้าน)", address: c.address || ("ต." + c.subdistrict), houseNo: "",
+        lat: c.home ? c.home.lat : null, lng: c.home ? c.home.lng : null,
+        baseHouseholdsAt100m: HOUSEHOLDS_PER_100M_ESTIMATE, defaultRadius: 100
+      }];
+      if (c.workplace || c.work) {
+        locations.push({
+          type: "work", label: "สถานที่ทำงาน/เรียน", name: c.workplace || "สถานที่ทำงาน/เรียน",
+          lat: c.work ? c.work.lat : null, lng: c.work ? c.work.lng : null,
+          baseHouseholdsAt100m: HOUSEHOLDS_PER_100M_ESTIMATE, defaultRadius: 100
+        });
+      }
+      return {
+        id: i + 1, caseId: c.caseId,
+        name: (c.community ? c.community + " " : "") + (c.subdistrict ? "ต." + c.subdistrict : ""),
+        clusterRef: cl ? cl.name + (confirmed[cl.clusterId] ? " (ยืนยันแล้ว)" : " (รอยืนยัน)") : "เคสเดี่ยว",
+        riskLevel: cl ? "สูง" : "ปานกลาง",
+        patientName: c.patientName,
+        caseFoundDate: startOfDay(c.found || c.onset),
+        sourceFile: c.caseId, sourceUrl: /^https:\/\//.test(c.fileUrl) ? c.fileUrl : "",
+        locations: locations
+      };
+    });
+
+    activeLocTypesByAreaId = {}; radiusByKey = {}; fuelTypeByKey = {}; workplanEntryByKey = {}; sprayDoneByKey = {};
+    AREAS.forEach(function (area) {
+      var active = [];
+      area.locations.forEach(function (loc) {
+        var saved = planByKey[area.caseId + ":" + loc.type];
+        var key = getLocationKey(area.id, loc.type);
+        if (!saved) { if (loc.type === "home") active.push("home"); return; }
+        if (saved.active === "Y") active.push(loc.type);
+        if (saved.radius) radiusByKey[key] = parseInt(saved.radius, 10) || 100;
+        if (saved.fuelType) fuelTypeByKey[key] = saved.fuelType;
+        if (saved.place) { if (loc.type === "home") loc.address = saved.place; else loc.name = saved.place; }
+        if (saved.team) {
+          var t = String(saved.time || "08:00").split(":");
+          workplanEntryByKey[key] = { assignedTeamId: parseInt(saved.team, 10) || 1, dayOffset: saved.dayOffset || "0", hour: t[0] || "08", minute: t[1] || "00" };
+        }
+        sprayDoneByKey[key] = { 0: saved.day0Done === "Y", 1: saved.day1Done === "Y", 7: saved.day7Done === "Y" };
+      });
+      activeLocTypesByAreaId[area.id] = active.length ? active : ["home"];
+    });
+
+    loadInfo = { loading: false, error: detail.error, windowDays: detail.windowDays };
+    renderAreaList();
+    renderWorkplanSchedule();
+  }
+
+  // บันทึกค่าที่เลือกของเคส (ทุกตำแหน่ง) ลงแท็บ "แผนควบคุมโรค" — รวบคำขอที่เกิดติดกันภายใน 0.8 วินาที
+  var persistTimers = {};
+  function schedulePersist(areaId) {
+    if (!areaId) return;
+    clearTimeout(persistTimers[areaId]);
+    persistTimers[areaId] = setTimeout(function () { persistArea(areaId); }, 800);
+  }
+
+  function persistArea(areaId) {
+    var area = getAreaById(areaId);
+    if (!area) return;
+    var active = activeLocTypesByAreaId[area.id] || ["home"];
+    var records = area.locations.map(function (loc) {
+      var key = getLocationKey(area.id, loc.type);
+      var entry = workplanEntryByKey[key];
+      var done = sprayDoneByKey[key] || {};
+      return {
+        planKey: area.caseId + ":" + loc.type, caseId: area.caseId, patientName: area.patientName,
+        locType: loc.type === "home" ? "บ้าน" : "ที่ทำงาน/เรียน",
+        place: loc.type === "home" ? loc.address : loc.name,
+        active: active.indexOf(loc.type) !== -1 ? "Y" : "N",
+        radius: String(getRadiusForKey(key, loc)), fuelType: getFuelTypeForKey(key),
+        team: entry ? String(entry.assignedTeamId) : "", dayOffset: entry ? entry.dayOffset : "",
+        time: entry ? entry.hour + ":" + entry.minute : "",
+        day0Done: done[0] ? "Y" : "", day1Done: done[1] ? "Y" : "", day7Done: done[7] ? "Y" : ""
+      };
+    });
+    setPlanSaveStatus("กำลังบันทึกแผนลงชีต...", false);
+    document.dispatchEvent(new CustomEvent("aidsrp:save-state", { detail: { tab: "controlPlan", records: records, requestId: "plan:" + area.caseId } }));
+  }
+
+  function setPlanSaveStatus(text, isError) {
+    var el = document.getElementById("plan-save-status");
+    if (!el) return;
+    el.textContent = text;
+    el.className = "body-secondary" + (isError ? " upload-ocr-status-error" : "");
+  }
+
+  document.addEventListener("aidsrp:state-saved", function (e) {
+    var d = e.detail || {};
+    if (String(d.requestId || "").indexOf("plan:") !== 0) return;
+    setPlanSaveStatus(d.ok ? "บันทึกแผนลงชีตแล้ว " + formatThaiDateTime(new Date()) : "บันทึกแผนลงชีตไม่สำเร็จ: " + (d.error || ""), !d.ok);
+  });
+  document.addEventListener("aidsrp:cases-loading", function () {
+    loadInfo.loading = true;
+    AREAS = [];
+    renderAreaList();
+    renderWorkplanSchedule();
+  });
+  document.addEventListener("aidsrp:cases-ready", function (e) { applyCases(e.detail); });
+
   function init() {
     // รอบ 14: default the date filter to today so the highlight/summary
     // are immediately useful on page load (per BUILD-PLAN.md assumption).
@@ -1313,8 +1405,12 @@
     // to true above).
     populateWorkplanDateFilterSelects();
     setWorkplanDateFilterSelects(new Date());
-    renderAreaList();
-    renderWorkplanSchedule();
+    if (window.AidsrpCases && window.AidsrpCases.last) {
+      applyCases(window.AidsrpCases.last);
+    } else {
+      renderAreaList();
+      renderWorkplanSchedule();
+    }
     initEvents();
   }
 

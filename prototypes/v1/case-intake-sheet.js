@@ -3,32 +3,11 @@
 // case-intake.js (classic script) ส่งคำขอบันทึกมาทาง CustomEvent "case-intake:save-to-sheet" และรับผลกลับทาง
 // "case-intake:sheet-result" (pattern เดียวกับ case-intake-upload.js) — ไฟล์นี้ไม่แก้สถานะเคสเอง
 
-import { auth } from "./firebase-init.js";
-import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-auth.js";
+import { callSheet } from "./sheet-client.js";
 import { CASE_SHEET_URL, CASE_SHEET_VIEW_URL } from "./sheet-config.js";
 
 // case-intake.js อ่านค่านี้ตอน render เพื่อแสดง/ซ่อนสถานะ "บันทึกลง Google Sheet" ของแถวที่ยืนยันแล้ว
 window.AidsrpCaseSheet = { enabled: !!CASE_SHEET_URL };
-
-const currentUser = new Promise(function (resolve) {
-  const stop = onAuthStateChanged(auth, function (user) { stop(); resolve(user); });
-});
-
-// Apps Script รับ body เป็นข้อความธรรมดา (ไม่ตั้ง Content-Type: application/json เพื่อไม่ให้เบราว์เซอร์ส่ง preflight
-// ซึ่ง Apps Script ตอบไม่ได้) — token อยู่ใน body เพราะ Apps Script อ่าน header ของคำขอไม่ได้
-async function callSheet(action, extra) {
-  const user = await currentUser;
-  if (!user) throw new Error("ต้องเข้าสู่ระบบก่อน");
-  const idToken = await user.getIdToken();
-  const res = await fetch(CASE_SHEET_URL, {
-    method: "POST",
-    body: JSON.stringify(Object.assign({ action: action, idToken: idToken }, extra || {}))
-  });
-  const body = await res.json().catch(function () { return null; });
-  if (!res.ok || !body) throw new Error("ติดต่อ Google Sheet ไม่ได้ (" + res.status + ")");
-  if (!body.ok) throw new Error(body.error || "Google Sheet ตอบกลับผิดพลาด");
-  return body;
-}
 
 // ไฟล์ -> base64 (ไม่มี prefix data:) สำหรับส่งให้ Apps Script บันทึกลง Drive
 function fileToBase64(file) {

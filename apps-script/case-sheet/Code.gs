@@ -102,6 +102,8 @@ function doPost(e) {
     if (!user) return json_({ ok: false, error: "ต้องเข้าสู่ระบบเว็บ ai-dsrp ก่อน" });
 
     if (body.action === "list") return json_({ ok: true, rows: listRows_() });
+    if (body.action === "state.list") return json_({ ok: true, tabs: listStateTabs_(body.tabs || []) });
+    if (body.action === "state.upsert") return json_(upsertState_(body.tab, body.records || [], user.email || ""));
     if (body.action === "upsert") return json_(upsertRow_(body.record || {}, user.email || "", body.file, body.overwrite === true));
     return json_({ ok: false, error: "action ไม่ถูกต้อง" });
   } catch (err) {
@@ -247,6 +249,95 @@ function listRows_() {
     Object.keys(colOf).forEach(function (key) { obj[key] = row[colOf[key] - 1]; });
     return obj;
   }).reverse();
+}
+
+/* ---------- แท็บสถานะของหน้า Case Analysis / Control Plan (prototypes/v1/sheet-cases.js) ----------
+   หนึ่งแถวต่อ key — หน้าเว็บส่งทั้งแถวมาเขียนทับ (upsert) ระบบใส่ผู้แก้ไข/เวลาให้เอง */
+var STATE_TABS = {
+  clusters: {
+    name: "กลุ่มเคส", key: "clusterId",
+    columns: [["clusterId", "Cluster ID"], ["name", "ชื่อกลุ่ม"], ["disease", "โรค"], ["subdistrict", "ตำบล"],
+      ["caseCount", "จำนวนเคส"], ["caseIds", "Case ID ในกลุ่ม"], ["status", "สถานะ"],
+      ["updatedBy", "ยืนยัน/แก้ไขโดย"], ["updatedAt", "ยืนยัน/แก้ไขเมื่อ"]]
+  },
+  controlPlan: {
+    name: "แผนควบคุมโรค", key: "planKey",
+    columns: [["planKey", "Plan Key"], ["caseId", "Case ID"], ["patientName", "ชื่อ-สกุล"], ["locType", "ตำแหน่ง"],
+      ["place", "ที่อยู่/สถานที่"], ["active", "ใช้ในแผน"], ["radius", "รัศมี (ม.)"], ["fuelType", "ชนิดน้ำมัน/น้ำยา"],
+      ["team", "ทีมพ่น"], ["dayOffset", "นัดพ่น (Day)"], ["time", "เวลา"], ["day0Done", "พ่นแล้ว Day 0"],
+      ["day1Done", "พ่นแล้ว Day 1"], ["day7Done", "พ่นแล้ว Day 7"], ["updatedBy", "แก้ไขโดย"], ["updatedAt", "แก้ไขเมื่อ"]]
+  }
+};
+
+// แท็บ + แผนที่ key -> เลขคอลัมน์ (หาจากชื่อหัวคอลัมน์ สร้างแท็บ/คอลัมน์ที่ขาดให้เอง)
+function getStateTab_(def) {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName(def.name);
+  if (!sheet) {
+    sheet = ss.insertSheet(def.name);
+    sheet.getRange(1, 1, 1, def.columns.length).setValues([def.columns.map(function (c) { return c[1]; })]).setFontWeight("bold");
+    sheet.setFrozenRows(1);
+    sheet.getRange(1, 1, sheet.getMaxRows(), def.columns.length).setNumberFormat("@");
+  }
+  var header = sheet.getRange(1, 1, 1, Math.max(sheet.getLastColumn(), 1)).getDisplayValues()[0];
+  var colOf = {};
+  def.columns.forEach(function (c) {
+    var col = header.map(norm_).indexOf(norm_(c[1])) + 1;
+    if (!col) {
+      col = sheet.getLastColumn() + 1;
+      sheet.getRange(1, col).setValue(c[1]).setFontWeight("bold");
+      sheet.getRange(1, col, sheet.getMaxRows(), 1).setNumberFormat("@");
+      header[col - 1] = c[1];
+    }
+    colOf[c[0]] = col;
+  });
+  return { sheet: sheet, colOf: colOf };
+}
+
+function listStateTabs_(names) {
+  var out = {};
+  names.forEach(function (n) {
+    var def = STATE_TABS[n];
+    if (!def) return;
+    var t = getStateTab_(def), lastRow = t.sheet.getLastRow();
+    if (lastRow < 2) { out[n] = []; return; }
+    var data = t.sheet.getRange(2, 1, lastRow - 1, t.sheet.getLastColumn()).getDisplayValues();
+    out[n] = data.filter(function (row) { return row[t.colOf[def.key] - 1]; }).map(function (row) {
+      var obj = {};
+      Object.keys(t.colOf).forEach(function (k) { obj[k] = row[t.colOf[k] - 1]; });
+      return obj;
+    });
+  });
+  return out;
+}
+
+function upsertState_(tabName, records, email) {
+  var def = STATE_TABS[tabName];
+  if (!def) return { ok: false, error: "ไม่รู้จักแท็บ " + tabName };
+  var lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  try {
+    var t = getStateTab_(def), sheet = t.sheet, colOf = t.colOf;
+    var now = Utilities.formatDate(new Date(), "Asia/Bangkok", "yyyy-MM-dd HH:mm:ss");
+    records.forEach(function (rec) {
+      if (!rec[def.key]) return;
+      rec.updatedBy = email;
+      rec.updatedAt = now;
+      var lastRow = sheet.getLastRow(), rowIndex = -1;
+      if (lastRow > 1) {
+        var keys = sheet.getRange(2, colOf[def.key], lastRow - 1, 1).getDisplayValues();
+        for (var i = 0; i < keys.length; i++) if (keys[i][0] === String(rec[def.key])) { rowIndex = i + 2; break; }
+      }
+      if (rowIndex < 0) rowIndex = lastRow + 1;
+      def.columns.forEach(function (c) {
+        if (!(c[0] in rec)) return;
+        sheet.getRange(rowIndex, colOf[c[0]]).setNumberFormat("@").setValue(rec[c[0]] == null ? "" : String(rec[c[0]]));
+      });
+    });
+    return { ok: true, count: records.length };
+  } finally {
+    lock.releaseLock();
+  }
 }
 
 // กด ▶ Run ฟังก์ชันนี้ในหน้า Apps Script หนึ่งครั้งเพื่อให้ Google ขอสิทธิ์ Drive/Sheet
