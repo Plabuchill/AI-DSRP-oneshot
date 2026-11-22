@@ -1311,7 +1311,7 @@
       }
       return {
         id: i + 1, caseId: c.caseId,
-        name: (c.community ? c.community + " " : "") + (c.subdistrict ? "ต." + c.subdistrict : ""),
+        name: ((c.community ? c.community + " " : "") + (c.subdistrict ? "ต." + c.subdistrict : "")).trim() || c.address || "-",
         clusterRef: cl ? cl.name + (confirmed[cl.clusterId] ? " (ยืนยันแล้ว)" : " (รอยืนยัน)") : "เคสเดี่ยว",
         riskLevel: cl ? "สูง" : "ปานกลาง",
         patientName: c.patientName,
