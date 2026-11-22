@@ -335,16 +335,9 @@
     if (!c.diseaseId) c.diseaseId = guessDiseaseId(c.labResult);
   });
 
-  // Notification log — seeded with the log entry for the pre-confirmed case.
-  var NOTIFICATIONS = [
-    {
-      caseId: 1,
-      teamName: TEAMS[3],
-      timestampLabel: CASES[0].seedLogTimestamp,
-      patientName: CASES[0].patientName,
-      subdistrict: CASES[0].subdistrict
-    }
-  ];
+  // บันทึกการแจ้งเตือนทีมผ่าน LINE (line-notify.js) — status: "sending" | "sent" | "error"
+  var NOTIFICATIONS = [];
+  var nextNotifyId = 1;
 
 
   function getCaseById(id) {
@@ -683,7 +676,9 @@
      visual pattern from the dashboard for consistency)
      --------------------------------------------------------- */
   function renderNotificationLog() {
-    els.notifPanelSubtitle.textContent = "ส่งแจ้งเตือนแล้ว " + NOTIFICATIONS.length + " ครั้ง";
+    var sentCount = NOTIFICATIONS.filter(function (n) { return n.status === "sent"; }).length;
+    els.notifPanelSubtitle.textContent = "ส่งเข้ากลุ่ม LINE ของทีมแล้ว " + sentCount + " ครั้ง" +
+      (NOTIFICATIONS.length > sentCount ? " · ไม่สำเร็จ/กำลังส่ง " + (NOTIFICATIONS.length - sentCount) + " ครั้ง" : "");
     els.notificationLog.innerHTML = "";
 
     if (NOTIFICATIONS.length === 0) {
@@ -697,17 +692,21 @@
     NOTIFICATIONS.forEach(function (n) {
       var item = document.createElement("div");
       item.className = "alert-item";
+      var badge = n.status === "sent" ? '<span class="badge badge-confirmed">ส่ง LINE แล้ว</span>'
+        : n.status === "sending" ? '<span class="badge badge-neutral">กำลังส่ง...</span>'
+        : '<span class="badge badge-danger">ส่งไม่สำเร็จ</span>';
       item.innerHTML =
-        '<div class="alert-icon badge-confirmed">' + ICON_SEND + "</div>" +
+        '<div class="alert-icon ' + (n.status === "error" ? "badge-danger" : "badge-confirmed") + '">' + ICON_SEND + "</div>" +
         '<div class="alert-body">' +
           '<div class="alert-top-row">' +
-            '<span class="alert-title">' + n.teamName + "</span>" +
-            '<span class="badge badge-confirmed">ส่งแล้ว</span>' +
+            '<span class="alert-title">' + escapeHtml(n.teamName) + (n.update ? " (อัปเดต)" : "") + "</span>" + badge +
           "</div>" +
           '<p class="body-secondary" style="font-size:14px;color:var(--color-text-primary)">' +
-            "เคสผู้ป่วย " + n.patientName + " &middot; ต." + n.subdistrict +
+            escapeHtml(n.caseId) + " &middot; " + escapeHtml(n.area) +
           "</p>" +
-          '<div class="alert-meta"><span>' + n.timestampLabel + "</span></div>" +
+          (n.status === "error" ? '<p class="body-secondary upload-ocr-status-error">' + escapeHtml(n.error || "") + "</p>" +
+            '<button type="button" class="btn btn-outline btn-sm btn-retry-line" data-notify-id="' + n.notifyId + '">ส่งอีกครั้ง</button>' : "") +
+          '<div class="alert-meta"><span>' + escapeHtml(n.timestampLabel) + "</span></div>" +
         "</div>";
       els.notificationLog.appendChild(item);
     });
@@ -778,19 +777,37 @@
 
     c.status = "confirmed";
     var now = new Date();
-    NOTIFICATIONS.unshift({
-      caseId: c.id,
-      teamName: TEAMS[c.zone],
-      timestampLabel: formatThaiDateTime(now),
-      patientName: c.patientName,
-      subdistrict: c.subdistrict
-    });
+    notifyTeam(c, now);
 
     saveCaseToSheet(c);
     renderOCRTable();
     renderUploadList();
     renderNotificationLog();
     renderSpotMap();
+  }
+
+  // แจ้งเคสเข้ากลุ่ม LINE ของทีมที่รับผิดชอบ — ไม่ส่งชื่อ/เลขบัตร/ที่อยู่เต็ม (ดู line-notify.js)
+  function notifyTeam(c, now) {
+    var record = sheetRecordOf(c);
+    var n = {
+      notifyId: nextNotifyId++, caseId: c.caseId, teamId: c.zone, teamName: TEAMS[c.zone] || "ไม่ทราบทีม",
+      area: [c.extra && c.extra.homeCommunity, c.subdistrict ? "ต." + c.subdistrict : ""].filter(Boolean).join(" ") || "-",
+      disease: record.diseaseId ? record.diseaseId + " " + record.diseaseName : "",
+      onsetDate: record.onsetDate, coords: record.homeCoords,
+      update: !!c._notifiedOnce, status: "sending", timestampLabel: formatThaiDateTime(now)
+    };
+    c._notifiedOnce = true;
+    NOTIFICATIONS.unshift(n);
+    sendLine(n);
+  }
+
+  function sendLine(n) {
+    n.status = "sending";
+    n.error = "";
+    document.dispatchEvent(new CustomEvent("case-intake:line-notify", { detail: {
+      notifyId: n.notifyId, teamId: n.teamId, caseId: n.caseId, disease: n.disease, area: n.area,
+      onsetDate: n.onsetDate, coords: n.coords, update: n.update
+    } }));
   }
 
   // "เลิกทำ" — undo a manual adjustment and restore the original mock pin
@@ -1160,6 +1177,21 @@
     initEvents();
     document.addEventListener("case-intake:ocr-result", function (e) {
       addCaseFromOCR(e.detail);
+    });
+    document.addEventListener("case-intake:line-result", function (e) {
+      NOTIFICATIONS.forEach(function (n) {
+        if (n.notifyId !== e.detail.notifyId) return;
+        n.status = e.detail.ok ? "sent" : "error";
+        n.error = e.detail.error || "";
+      });
+      renderNotificationLog();
+    });
+    els.notificationLog.addEventListener("click", function (e) {
+      var btn = e.target.closest(".btn-retry-line");
+      if (!btn) return;
+      var id = parseInt(btn.getAttribute("data-notify-id"), 10);
+      NOTIFICATIONS.forEach(function (n) { if (n.notifyId === id) sendLine(n); });
+      renderNotificationLog();
     });
     document.addEventListener("case-intake:sheet-result", function (e) {
       CASES.forEach(function (c) {

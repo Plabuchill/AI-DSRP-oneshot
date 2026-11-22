@@ -8,6 +8,8 @@
 // ตัวแปร (wrangler.toml [vars]): ALLOWED_ORIGINS, FIREBASE_API_KEY (web API key สาธารณะ), GEMINI_MODEL
 // Secret (wrangler secret put): GEMINI_API_KEY
 
+import { handleLineWebhook, handleLineApi } from "./line.js";
+
 // รหัสโรคตามแบบ รง.506 — ต้องตรงกับ DISEASE_TYPES ใน prototypes/v1/case-intake.js
 const DISEASES = {
   "01": "อหิวาตกโรค", "02": "อุจจาระร่วง", "03": "อาหารเป็นพิษ", "04": "บิด (Dysentery, unspecified)",
@@ -149,16 +151,31 @@ async function verifyFirebaseUser(request, env) {
 
 export default {
   async fetch(request, env) {
+    const path = new URL(request.url).pathname;
+    // LINE เรียก webhook โดยตรง (ไม่มี Origin/Firebase token) — ป้องกันด้วยลายเซ็น X-Line-Signature แทน
+    if (path === "/line/webhook" && request.method === "POST") return handleLineWebhook(request, env);
+
     const cors = corsHeaders(request, env);
     if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: cors });
     if (request.method !== "POST") return json({ error: "ใช้ได้เฉพาะ POST" }, 405, cors);
     if (!cors["Access-Control-Allow-Origin"]) return json({ error: "origin ไม่ได้รับอนุญาต" }, 403, cors);
-    if (!env.GEMINI_API_KEY) return json({ error: "ตัวกลางยังไม่ได้ตั้งค่า GEMINI_API_KEY" }, 500, cors);
 
     if (!(await verifyFirebaseUser(request, env))) return json({ error: "ต้องเข้าสู่ระบบก่อนใช้งาน" }, 401, cors);
 
     let body;
     try { body = await request.json(); } catch (e) { return json({ error: "รูปแบบคำขอไม่ถูกต้อง" }, 400, cors); }
+
+    if (path.indexOf("/line/") === 0) {
+      try {
+        const r = await handleLineApi(path, body || {}, env);
+        return json(r.body, r.status, cors);
+      } catch (err) {
+        return json({ error: err.message }, 502, cors);
+      }
+    }
+
+    // ----- OCR (path "/") -----
+    if (!env.GEMINI_API_KEY) return json({ error: "ตัวกลางยังไม่ได้ตั้งค่า GEMINI_API_KEY" }, 500, cors);
     const mimeType = body && body.mimeType;
     const data = body && body.data;
     if (ALLOWED_MIME.indexOf(mimeType) === -1) return json({ error: "รองรับเฉพาะ PDF, JPEG, PNG" }, 400, cors);
